@@ -1,0 +1,16 @@
+# Dependency folders
+node_modules/
+client/node_modules/
+server/node_modules/
+
+# Environment variables
+.env
+server/.env
+client/.env
+
+# Build folders
+client/dist/
+client/build/
+
+# OS files
+.DS_Store
