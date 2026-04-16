@@ -1,11 +1,10 @@
 import { Router } from "express";
-import { allMessages, sendMessage } from "../controllers/message.controller.js";
-import { protect } from "../middleware/auth.middleware.js"; // This ensures user is logged in
+import { sendMessage } from "../controllers/message.controller.js";
+import { protect } from "../middleware/auth.middleware.js";
 
 const router = Router();
 
-// Route to fetch all messages of a chat and send a new message
-router.route("/:chatId").get(protect, allMessages);
+// Middleware 'protect' controller se pehle chalega
 router.route("/").post(protect, sendMessage);
 
 export default router;
