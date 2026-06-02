@@ -3,10 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { MessageSquare } from 'lucide-react';
 
 function JoinPage() {
-  const [userName, setUserName] = useState('');
   const [roomId, setRoomId] = useState('');
   const navigate = useNavigate();
-
+  const loggedInUser = JSON.parse(localStorage.getItem('user'));
+ const [userName] = useState(loggedInUser?.username || 'Anonymous');
   const handleJoin = (e) => {
     e.preventDefault();
     if (!userName.trim() || !roomId.trim()) return;
