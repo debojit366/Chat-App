@@ -37,7 +37,7 @@ function DashboardPage() {
     try {
       const searchType = activeTab === 'chats' ? 'rooms' : 'users';
       
-      // Axios call (No .json() required, data directly config object me milta hai)
+      // Axios call (No .json() required, data is returned directly in the response object)
       const response = await API.get('/search', {
         params: {
           type: searchType,
@@ -46,7 +46,7 @@ function DashboardPage() {
         }
       });
       
-      setSearchResults(response.data); // Axios output response.data me deta hai
+      setSearchResults(response.data); // Axios provides output in response.data
     } catch (err) {
       console.error("❌ Axios search error:", err.response?.data?.message || err.message);
     }
@@ -84,7 +84,7 @@ function DashboardPage() {
       return;
     }
 
-    // Alphabetic order sorting logic: hamesha identical room string structure banega
+    // Alphabetic order sorting logic: ensures a consistent room string structure is always generated
     const sortedIds = [userId, friendId].sort();
     const uniquePrivateRoomId = `${sortedIds[0]}_${sortedIds[1]}`;
 
