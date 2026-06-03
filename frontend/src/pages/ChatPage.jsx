@@ -15,7 +15,8 @@ function ChatPage() {
   const [messages, setMessages] = useState([]);
   const messagesEndRef = useRef(null);
 
-  // Redirect back if someone tries to open the chat page directly without a username
+  // Redirect back if someone tries to open th
+  //  e chat page directly without a username
   useEffect(() => {
     if (!userName) {
       navigate('/');
