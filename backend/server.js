@@ -6,6 +6,10 @@ import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import crypto from 'crypto';
 import authRoutes from './routes/auth.js'; 
+import { ExpressPeerServer } from 'peer';
+
+
+
 
 dotenv.config();
 
@@ -46,6 +50,15 @@ app.use((err, req, res, next) => {
 });
 
 const httpServer = createServer(app);
+
+// Initialize PeerServer
+const peerServer = ExpressPeerServer(httpServer, {
+    debug: true,
+    path: '/myapp'
+});
+
+app.use('/peerjs', peerServer);
+
 const io = new Server(httpServer, {
     cors: { origin: "*", methods: ["GET", "POST"] }
 });
@@ -69,6 +82,16 @@ io.on('connection', (socket) => {
         io.to(roomId).emit('receive-message', messageData);
     });
 
+    socket.on('ready-for-call', ({ roomId, userName }) => {
+        console.log(`📡 [PeerJS Signal] ${userName} is ready for call in room ${roomId}`);
+        socket.to(roomId).emit('peer-ready-to-receive', { targetPeerName: userName });
+    });
+
+    socket.on('end-call-signal', ({ roomId }) => {
+        socket.to(roomId).emit('call-terminated-by-peer');
+    });
+
+    
     socket.on('disconnecting', () => {
         
         const rooms = Array.from(socket.rooms);
