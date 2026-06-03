@@ -45,7 +45,7 @@ function ChatPage() {
       ]);
     });
     socket.on('chat-history', (historyData) => {
-  // Database se aane wale data ke keys ko apne standard format me map kar lo
+  // Map the data keys coming from the database into our standard format
   const formattedHistory = historyData.map(msg => ({
     id: msg._id,
     text: msg.text,
@@ -53,7 +53,7 @@ function ChatPage() {
     createdAt: msg.createdAt
   }));
   
-  setMessages(formattedHistory); // Poori history ek baar me UI par render ho jayegi
+  setMessages(formattedHistory); // The entire history will be rendered on the UI at once
 });
 
     // --- Dynamic Listener: Signal to auto-open call layout for the receiver ---

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LogOut, MessageSquare, Plus, User, Search, Hash } from 'lucide-react';
+import API from '../api';
+
 
 function DashboardPage() {
   const navigate = useNavigate();
@@ -9,7 +11,8 @@ function DashboardPage() {
   const [newRoomId, setNewRoomId] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [searchResults, setSearchResults] = useState([]); // Storage for backend search
-
+  const [friends, setFriends] = useState([]); // Database friends store
+  const [loadingFriends, setLoadingFriends] = useState(true);
   // Parse logged in user metadata
   const loggedInUser = JSON.parse(localStorage.getItem('user'));
   const userName = loggedInUser?.username || 'Anonymous';
@@ -17,41 +20,60 @@ function DashboardPage() {
 
   // Dynamic lists hooks (In real production app, fetch on mount via useEffect)
   const [recentChats] = useState([
-    { id: 'room-101', name: 'WebRTC Developers', lastMessage: 'Call connect nahi ho raha bhai...', time: '12:45 PM' },
+    { id: 'room-101', name: 'WebRTC Developers', lastMessage: 'Brother, the call is not connecting...', time: '12:45 PM' },
     { id: 'gaming-zone', name: 'Chai Aur Code', lastMessage: 'Debojit: PeerJS server setup done!', time: 'Yesterday' },
-  ]);
-
-  const [friends] = useState([
-    { id: '647b1a2b3c4d5e6f7a8b9c10', username: 'Rahul Sharma', status: 'online' }, // Example MongoDB ObjectIds
-    { id: '647b1a2b3c4d5e6f7a8b9c11', username: 'Amit Das', status: 'offline' },
-    { id: '647b1a2b3c4d5e6f7a8b9c12', username: 'Sneha Paul', status: 'online' },
   ]);
 
   // ==========================================
   // BACKEND DEBOUNCED SEARCH API EFFECT
   // ==========================================
   useEffect(() => {
-    const delayDebounceFn = setTimeout(async () => {
-      if (!searchQuery.trim()) {
-        setSearchResults([]);
-        return;
-      }
+  const delayDebounceFn = setTimeout(async () => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
 
-      try {
-        const searchType = activeTab === 'chats' ? 'rooms' : 'users';
-        const response = await fetch(`http://localhost:5000/api/auth/search?type=${searchType}&q=${searchQuery}&userId=${userId}`);
-        const data = await response.json();
-        
-        if (response.ok) {
-          setSearchResults(data);
+    try {
+      const searchType = activeTab === 'chats' ? 'rooms' : 'users';
+      
+      // Axios call (No .json() required, data directly config object me milta hai)
+      const response = await API.get('/search', {
+        params: {
+          type: searchType,
+          q: searchQuery,
+          userId: userId
         }
-      } catch (err) {
-        console.error("❌ Search API connection failed:", err);
-      }
-    }, 300); // 300ms debounce buffer to limit API spam
+      });
+      
+      setSearchResults(response.data); // Axios output response.data me deta hai
+    } catch (err) {
+      console.error("❌ Axios search error:", err.response?.data?.message || err.message);
+    }
+  }, 300);
 
-    return () => clearTimeout(delayDebounceFn);
-  }, [searchQuery, activeTab, userId]);
+  return () => clearTimeout(delayDebounceFn);
+}, [searchQuery, activeTab, userId]);
+
+  useEffect(() => {
+  const fetchMyFriends = async () => {
+    if (!userId) return;
+    try {
+      setLoadingFriends(true);
+      
+      // Axios clean endpoint fetch path
+      const response = await API.get(`/friends/${userId}`);
+      
+      setFriends(response.data); // MongoDB documents array directly sync ho gaya
+    } catch (err) {
+      console.error("❌ Axios friends load error:", err.response?.data?.message || err.message);
+    } finally {
+      setLoadingFriends(false);
+    }
+  };
+
+  fetchMyFriends();
+}, [userId]);
 
   // ==========================================
   // SECURE PRIVATE 1-ON-1 CHAT GENERATOR
@@ -189,7 +211,7 @@ function DashboardPage() {
               searchResults.map((user) => (
                 <div 
                   key={user._id || user.id} 
-                  onClick={() => handleStartPrivateChat(user._id || user.id)} // Direct click maps 1-1 security check
+                  onClick={() => handleStartPrivateChat(user._id || user.id)}
                   className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-700/60 cursor-pointer border border-transparent hover:border-slate-600 transition group"
                 >
                   <div className="flex items-center space-x-3">
@@ -201,24 +223,26 @@ function DashboardPage() {
                   <span className="text-xs px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded-full">Global User</span>
                 </div>
               ))
+            ) : loadingFriends ? (
+              <div className="text-center text-xs text-slate-400 py-8 animate-pulse">
+                Loading friends from database... ⏳
+              </div>
             ) : friends.length > 0 ? (
               friends.map((friend) => (
                 <div 
-                  key={friend.id} 
-                  onClick={() => handleStartPrivateChat(friend.id)} // Dynamic Private room initialization
+                  key={friend._id || friend.id} 
+                  onClick={() => handleStartPrivateChat(friend._id || friend.id)}
                   className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-700/60 cursor-pointer border border-transparent hover:border-slate-600 transition group"
                 >
                   <div className="flex items-center space-x-3">
                     <div className="relative bg-slate-700 p-2.5 rounded-xl text-slate-300 group-hover:bg-blue-600 group-hover:text-white transition">
                       <User size={18} />
-                      {friend.status === 'online' && (
-                        <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-slate-800 rounded-full"></span>
-                      )}
+                      <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 border-2 border-slate-800 rounded-full ${friend.status === 'online' ? 'bg-emerald-500' : 'bg-slate-500'}`}></span>
                     </div>
                     <h4 className="text-sm font-medium text-slate-200">{friend.username}</h4>
                   </div>
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${friend.status === 'online' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-700 text-slate-500'}`}>
-                    {friend.status}
+                    {friend.status || 'offline'}
                   </span>
                 </div>
               ))

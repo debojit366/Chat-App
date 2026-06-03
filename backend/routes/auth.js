@@ -122,10 +122,8 @@ router.get('/friends/:userId', async (req, res, next) => {
     try {
         const { userId } = req.params;
 
-        // User ko find karenge aur uske 'friends' array ko populate karenge
-        // populate karne se sirf IDs ki jagah friends ka username aur online status bhi mil jayega
         const userWithFriends = await User.findById(userId)
-            .populate('friends', 'username status email'); // Sirf zaroori fields fetch karenge
+            .populate('friends', 'username status email');
 
         if (!userWithFriends) {
             return res.status(404).json({ message: "User not found" });
@@ -133,7 +131,6 @@ router.get('/friends/:userId', async (req, res, next) => {
 
         console.log(`👥 [Friends Route] Fetched ${userWithFriends.friends.length} friends for user: ${userWithFriends.username}`);
         
-        // Frontend ko direct friends ka array return kar do
         res.status(200).json(userWithFriends.friends);
     } catch (error) {
         console.error("❌ [Friends Route] Error fetching friends:", error);

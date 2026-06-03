@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import crypto from 'crypto';
 import authRoutes from './routes/auth.js'; 
+import userRoutes from './routes/users.js';
 import { ExpressPeerServer } from 'peer';
 import Message from './models/Message.js';
 import User from './models/User.js';
@@ -34,6 +35,9 @@ app.use((req, res, next) => {
 
 // 4. Bind Authentication API Routes
 app.use('/api/auth', authRoutes);
+
+// 5. User API Routes
+app.use('/api/users', userRoutes);
 
 app.get('/', (req, res) => {
     res.send({ message: "Server is up and running!" });
@@ -69,25 +73,24 @@ io.on('connection', (socket) => {
 
     socket.on('join-room', async ({ roomId, userName }) => {
     
-    // Agar private room hai (ID me '_' hai), toh check karo ki access allowed hai ya nahi
+    // If it's a private room (ID contains '_'), verify access permissions
     if (roomId.includes('_')) {
         const [user1Id, user2Id] = roomId.split('_');
 
         try {
-            // Database se check karo ki kya ye dono users aapas me friends hain
             const user1 = await User.findById(user1Id);
             const user2 = await User.findById(user2Id);
 
-            const isFriend = user1?.friends.includes(user2Id) || user2?.friends.includes(user1Id);
+            const isFriend = user1?.friends.some(f => f.toString() === user2Id) || user2?.friends.some(f => f.toString() === user1Id);
 
             if (!isFriend) {
                 console.log(`🚫 [Security Alert] Unauthorized access attempt by ${userName} in room ${roomId}`);
                 socket.emit('receive-message', {
                     id: 'sys-error',
-                    text: '⚠️ Secruity Error: Aap sirf unhi se chat kar sakte hain jo aapke friends hain!',
+                    text: '⚠️ Security Error: You can only chat with users who are on your friends list!',
                     system: true
                 });
-                return; // Room join karne se rok do!
+                return;
             }
         } catch (err) {
             console.error("Security check failed:", err);
@@ -95,7 +98,7 @@ io.on('connection', (socket) => {
         }
     }
 
-    // Agar authentication pass ho gayi, toh standard room join allow karo
+    // Standard room join if authentication passes
     socket.join(roomId);
     console.log(`🔒 [Secure Chat Activated] ${userName} entered private room: ${roomId}`);
     socket.to(roomId).emit('user-connected', { userName });
@@ -111,7 +114,6 @@ io.on('connection', (socket) => {
 
     socket.on('send-message', async ({ roomId, message, sender }) => {
     try {
-        // 2. Chat ko MongoDB me permanently save karo
         const newMessage = new Message({
             roomId,
             sender,
@@ -119,7 +121,7 @@ io.on('connection', (socket) => {
         });
         const savedMessage = await newMessage.save();
 
-        // 3. Poore room ko database me saved wala structure bhejo
+        // Broadcast the saved message structure to the room
         const messageData = {
             id: savedMessage._id,
             text: savedMessage.text,
@@ -129,7 +131,7 @@ io.on('connection', (socket) => {
         
         io.to(roomId).emit('receive-message', messageData);
     } catch (err) {
-        console.error("❌ Message save karne me error:", err);
+        console.error("❌ Error saving message:", err);
     }
 });
 
