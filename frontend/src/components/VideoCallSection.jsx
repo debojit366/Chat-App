@@ -36,10 +36,10 @@ function VideoCallSection({ roomId, userName, onCallEnd, isInitiator }) {
         const customPeerId = `${roomId}-${userName.replace(/\s+/g, '')}`;
         
         const peer = new Peer(customPeerId, {
-          host: 'localhost',       // Hamare backend ka host
-          port: 5000,              // Hamare backend ka port
-          path: '/peerjs/myapp',   // server.js me jo app.use path set kiya tha
-          secure: false            // Dev mode me http hai isliye false (production/https me true hoga)
+          host: 'localhost',
+          port: 5000,
+          path: '/peerjs/myapp',
+          secure: false
         });
         
         peerInstanceRef.current = peer;

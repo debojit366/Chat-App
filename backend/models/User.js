@@ -2,13 +2,36 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 
 const userSchema = new mongoose.Schema({
-    username: { type: String, required: true, unique: true, trim: true },
-    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-    password: { type: String, required: true }
+    username: { 
+        type: String, 
+        required: true, 
+        unique: true, 
+        trim: true 
+    },
+    email: { 
+        type: String, 
+        required: true, 
+        unique: true, 
+        lowercase: true, 
+        trim: true 
+    },
+    password: { 
+        type: String, 
+        required: true 
+    },
+    // ==========================================
+    // NEW FIELDS FOR DASHBOARD SEARCH & LISTS
+    // ==========================================
+    friends: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User' 
+    }],
+    joinedRooms: [{
+        type: String 
+    }]
 }, { timestamps: true });
 
-// Pre-save hook: Hash password automatically before saving it to database
-// FIX: Removed the 'next' parameter since we are using an async function
+// Pre-save hook: Hash password automatically before saving 
 userSchema.pre('save', async function () {
     if (!this.isModified('password')) return;
     

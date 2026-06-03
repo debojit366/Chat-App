@@ -70,4 +70,50 @@ router.post('/login', async (req, res, next) => {
     }
 });
 
+// Route 3: Dynamic Search Route for Friends and Rooms
+router.get('/search', async (req, res, next) => {
+    try {
+        
+        const { type, q, userId } = req.query;
+
+        if (!q) {
+            return res.status(200).json([]);
+        }
+
+        const searchRegex = new RegExp(q, 'i');
+
+        // CASE 1: Users/Friends Search
+        if (type === 'users') {
+            console.log(`🔍 [Search Route] Searching for users matching: ${q}`);
+            
+            const users = await User.find({
+                _id: { $ne: userId },
+                username: searchRegex
+            }).select('username email');
+
+            return res.status(200).json(users);
+        }
+
+        // CASE 2: Rooms Search
+        if (type === 'rooms') {
+            console.log(`🔍 [Search Route] Searching rooms for user ${userId} matching: ${q}`);
+            
+            const user = await User.findById(userId);
+            if (!user) return res.status(404).json({ message: "User not found" });
+
+            const matchedRooms = user.joinedRooms.filter(roomName => 
+                roomName.toLowerCase().includes(q.toLowerCase())
+            );
+
+            return res.status(200).json(matchedRooms);
+        }
+
+        return res.status(400).json({ message: "Invalid search type" });
+
+    } catch (error) {
+        console.error("❌ [Search Route] Error inside search endpoint:", error);
+        next(error);
+    }
+});
+
 export default router;

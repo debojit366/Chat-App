@@ -7,7 +7,8 @@ import mongoose from 'mongoose';
 import crypto from 'crypto';
 import authRoutes from './routes/auth.js'; 
 import { ExpressPeerServer } from 'peer';
-
+import Message from './models/Message.js';
+import User from './models/User.js';
 
 
 
@@ -66,21 +67,71 @@ const io = new Server(httpServer, {
 io.on('connection', (socket) => {
     console.log(`⚡ User connected: ${socket.id}`);
 
-    socket.on('join-room', ({ roomId, userName }) => {
-        socket.join(roomId);
-        console.log(`👤 ${userName} (${socket.id}) joined room: ${roomId}`);
-        socket.to(roomId).emit('user-connected', { userName, socketId: socket.id });
-    });
+    socket.on('join-room', async ({ roomId, userName }) => {
+    
+    // Agar private room hai (ID me '_' hai), toh check karo ki access allowed hai ya nahi
+    if (roomId.includes('_')) {
+        const [user1Id, user2Id] = roomId.split('_');
 
-    socket.on('send-message', ({ roomId, message, sender }) => {
+        try {
+            // Database se check karo ki kya ye dono users aapas me friends hain
+            const user1 = await User.findById(user1Id);
+            const user2 = await User.findById(user2Id);
+
+            const isFriend = user1?.friends.includes(user2Id) || user2?.friends.includes(user1Id);
+
+            if (!isFriend) {
+                console.log(`🚫 [Security Alert] Unauthorized access attempt by ${userName} in room ${roomId}`);
+                socket.emit('receive-message', {
+                    id: 'sys-error',
+                    text: '⚠️ Secruity Error: Aap sirf unhi se chat kar sakte hain jo aapke friends hain!',
+                    system: true
+                });
+                return; // Room join karne se rok do!
+            }
+        } catch (err) {
+            console.error("Security check failed:", err);
+            return;
+        }
+    }
+
+    // Agar authentication pass ho gayi, toh standard room join allow karo
+    socket.join(roomId);
+    console.log(`🔒 [Secure Chat Activated] ${userName} entered private room: ${roomId}`);
+    socket.to(roomId).emit('user-connected', { userName });
+
+    // Load Chat History
+    try {
+        const chatHistory = await Message.find({ roomId }).sort({ createdAt: 1 });
+        socket.emit('chat-history', chatHistory);
+    } catch (err) {
+        console.error("History loading error:", err);
+    }
+});
+
+    socket.on('send-message', async ({ roomId, message, sender }) => {
+    try {
+        // 2. Chat ko MongoDB me permanently save karo
+        const newMessage = new Message({
+            roomId,
+            sender,
+            text: message
+        });
+        const savedMessage = await newMessage.save();
+
+        // 3. Poore room ko database me saved wala structure bhejo
         const messageData = {
-            id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2),
-            text: message,
-            sender: sender,
-            timestamp: new Date()
+            id: savedMessage._id,
+            text: savedMessage.text,
+            sender: savedMessage.sender,
+            createdAt: savedMessage.createdAt
         };
+        
         io.to(roomId).emit('receive-message', messageData);
-    });
+    } catch (err) {
+        console.error("❌ Message save karne me error:", err);
+    }
+});
 
     socket.on('ready-for-call', ({ roomId, userName }) => {
         console.log(`📡 [PeerJS Signal] ${userName} is ready for call in room ${roomId}`);

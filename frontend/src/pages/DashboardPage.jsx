@@ -8,33 +8,82 @@ function DashboardPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [newRoomId, setNewRoomId] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [searchResults, setSearchResults] = useState([]); // Storage for backend search
 
-  // Parse logged in user from localStorage
+  // Parse logged in user metadata
   const loggedInUser = JSON.parse(localStorage.getItem('user'));
   const userName = loggedInUser?.username || 'Anonymous';
+  const userId = loggedInUser?.id || loggedInUser?._id; // Ensure we have the current user's DB ID
 
-  // Mock Data: In real app, you will fetch this from MongoDB
+  // Dynamic lists hooks (In real production app, fetch on mount via useEffect)
   const [recentChats] = useState([
     { id: 'room-101', name: 'WebRTC Developers', lastMessage: 'Call connect nahi ho raha bhai...', time: '12:45 PM' },
     { id: 'gaming-zone', name: 'Chai Aur Code', lastMessage: 'Debojit: PeerJS server setup done!', time: 'Yesterday' },
   ]);
 
   const [friends] = useState([
-    { id: '1', username: 'Rahul Sharma', status: 'online' },
-    { id: '2', username: 'Amit Das', status: 'offline' },
-    { id: '3', username: 'Sneha Paul', status: 'online' },
+    { id: '647b1a2b3c4d5e6f7a8b9c10', username: 'Rahul Sharma', status: 'online' }, // Example MongoDB ObjectIds
+    { id: '647b1a2b3c4d5e6f7a8b9c11', username: 'Amit Das', status: 'offline' },
+    { id: '647b1a2b3c4d5e6f7a8b9c12', username: 'Sneha Paul', status: 'online' },
   ]);
+
+  // ==========================================
+  // BACKEND DEBOUNCED SEARCH API EFFECT
+  // ==========================================
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(async () => {
+      if (!searchQuery.trim()) {
+        setSearchResults([]);
+        return;
+      }
+
+      try {
+        const searchType = activeTab === 'chats' ? 'rooms' : 'users';
+        const response = await fetch(`http://localhost:5000/api/auth/search?type=${searchType}&q=${searchQuery}&userId=${userId}`);
+        const data = await response.json();
+        
+        if (response.ok) {
+          setSearchResults(data);
+        }
+      } catch (err) {
+        console.error("❌ Search API connection failed:", err);
+      }
+    }, 300); // 300ms debounce buffer to limit API spam
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery, activeTab, userId]);
+
+  // ==========================================
+  // SECURE PRIVATE 1-ON-1 CHAT GENERATOR
+  // ==========================================
+  const handleStartPrivateChat = (friendId) => {
+    if (!userId || !friendId) {
+      alert("Error: User IDs session not found!");
+      return;
+    }
+
+    // Alphabetic order sorting logic: hamesha identical room string structure banega
+    const sortedIds = [userId, friendId].sort();
+    const uniquePrivateRoomId = `${sortedIds[0]}_${sortedIds[1]}`;
+
+    // Connect to private room context feed
+    navigate(`/chat/${uniquePrivateRoomId}`, { state: { userName } });
+  };
+
+  const handleJoinRoom = (roomId) => {
+    if (!roomId.trim()) return;
+    navigate(`/chat/${roomId}`, { state: { userName } });
+  };
 
   const handleLogout = () => {
     localStorage.clear();
     navigate('/login');
   };
 
-  const handleJoinRoom = (roomId) => {
-    if (!roomId.trim()) return;
-    // Redirect to the actual Chat Page with the selected Room ID
-    navigate(`/chat/${roomId}`, { state: { userName } });
-  };
+  // Local sync filter array fallback (if search is empty)
+  const filteredChats = recentChats.filter(chat =>
+    chat.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className="min-h-screen bg-slate-900 flex text-slate-100 overflow-hidden h-screen">
@@ -63,13 +112,13 @@ function DashboardPage() {
         {/* Navigation Tabs */}
         <div className="flex p-2 gap-2 border-b border-slate-700 bg-slate-800/30">
           <button 
-            onClick={() => setActiveTab('chats')}
+            onClick={() => { setActiveTab('chats'); setSearchQuery(''); }}
             className={`flex-1 py-2 text-sm font-medium rounded-lg transition ${activeTab === 'chats' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:bg-slate-700'}`}
           >
             Chats
           </button>
           <button 
-            onClick={() => setActiveTab('friends')}
+            onClick={() => { setActiveTab('friends'); setSearchQuery(''); }}
             className={`flex-1 py-2 text-sm font-medium rounded-lg transition ${activeTab === 'friends' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:bg-slate-700'}`}
           >
             Friends
@@ -82,7 +131,7 @@ function DashboardPage() {
             <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
             <input 
               type="text" 
-              placeholder={activeTab === 'chats' ? "Search rooms..." : "Search friends..."}
+              placeholder={activeTab === 'chats' ? "Search rooms..." : "Search friends database..."}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-4 py-2 bg-slate-700 border border-slate-600 rounded-xl text-xs text-white focus:outline-none focus:border-blue-500 transition"
@@ -93,44 +142,89 @@ function DashboardPage() {
         {/* LIST FEED AREA */}
         <div className="flex-1 overflow-y-auto px-2 space-y-1">
           {activeTab === 'chats' ? (
-            recentChats.map((chat) => (
-              <div 
-                key={chat.id} 
-                onClick={() => handleJoinRoom(chat.id)}
-                className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-700/60 cursor-pointer border border-transparent hover:border-slate-600 transition group"
-              >
-                <div className="flex items-center space-x-3 min-w-0">
-                  <div className="bg-slate-700 p-2.5 rounded-xl text-blue-400 group-hover:bg-blue-600 group-hover:text-white transition">
-                    <Hash size={18} />
-                  </div>
-                  <div className="min-w-0">
-                    <h4 className="text-sm font-semibold text-slate-200 truncate">{chat.name}</h4>
-                    <p className="text-xs text-slate-400 truncate">{chat.lastMessage}</p>
+            // CHATS TARGET FEED BLOCK
+            searchQuery.trim() ? (
+              searchResults.map((roomName, index) => (
+                <div 
+                  key={index} 
+                  onClick={() => handleJoinRoom(roomName)}
+                  className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-700/60 cursor-pointer border border-transparent hover:border-slate-600 transition group"
+                >
+                  <div className="flex items-center space-x-3 min-w-0">
+                    <div className="bg-slate-700 p-2.5 rounded-xl text-blue-400 group-hover:bg-blue-600 group-hover:text-white transition">
+                      <Hash size={18} />
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="text-sm font-semibold text-slate-200 truncate">{roomName}</h4>
+                      <p className="text-xs text-emerald-400 truncate">Joined Room channel</p>
+                    </div>
                   </div>
                 </div>
-                <span className="text-[10px] text-slate-500 whitespace-nowrap self-start mt-1">{chat.time}</span>
-              </div>
-            ))
+              ))
+            ) : filteredChats.length > 0 ? (
+              filteredChats.map((chat) => (
+                <div 
+                  key={chat.id} 
+                  onClick={() => handleJoinRoom(chat.id)}
+                  className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-700/60 cursor-pointer border border-transparent hover:border-slate-600 transition group"
+                >
+                  <div className="flex items-center space-x-3 min-w-0">
+                    <div className="bg-slate-700 p-2.5 rounded-xl text-blue-400 group-hover:bg-blue-600 group-hover:text-white transition">
+                      <Hash size={18} />
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="text-sm font-semibold text-slate-200 truncate">{chat.name}</h4>
+                      <p className="text-xs text-slate-400 truncate">{chat.lastMessage}</p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] text-slate-500 whitespace-nowrap self-start mt-1">{chat.time}</span>
+                </div>
+              ))
+            ) : (
+              <div className="text-center text-xs text-slate-500 py-8">No active chats found... 🔍</div>
+            )
           ) : (
-            friends.map((friend) => (
-              <div 
-                key={friend.id} 
-                className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-700/40 border border-transparent transition"
-              >
-                <div className="flex items-center space-x-3">
-                  <div className="relative bg-slate-700 p-2.5 rounded-xl text-slate-300">
-                    <User size={18} />
-                    {friend.status === 'online' && (
-                      <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-slate-800 rounded-full"></span>
-                    )}
+            // FRIENDS TARGET FEED BLOCK
+            searchQuery.trim() ? (
+              searchResults.map((user) => (
+                <div 
+                  key={user._id || user.id} 
+                  onClick={() => handleStartPrivateChat(user._id || user.id)} // Direct click maps 1-1 security check
+                  className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-700/60 cursor-pointer border border-transparent hover:border-slate-600 transition group"
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className="bg-slate-700 p-2.5 rounded-xl text-slate-300 group-hover:bg-blue-600 group-hover:text-white transition">
+                      <User size={18} />
+                    </div>
+                    <h4 className="text-sm font-medium text-slate-200">{user.username}</h4>
                   </div>
-                  <h4 className="text-sm font-medium text-slate-200">{friend.username}</h4>
+                  <span className="text-xs px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded-full">Global User</span>
                 </div>
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${friend.status === 'online' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-700 text-slate-500'}`}>
-                  {friend.status}
-                </span>
-              </div>
-            ))
+              ))
+            ) : friends.length > 0 ? (
+              friends.map((friend) => (
+                <div 
+                  key={friend.id} 
+                  onClick={() => handleStartPrivateChat(friend.id)} // Dynamic Private room initialization
+                  className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-700/60 cursor-pointer border border-transparent hover:border-slate-600 transition group"
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className="relative bg-slate-700 p-2.5 rounded-xl text-slate-300 group-hover:bg-blue-600 group-hover:text-white transition">
+                      <User size={18} />
+                      {friend.status === 'online' && (
+                        <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-slate-800 rounded-full"></span>
+                      )}
+                    </div>
+                    <h4 className="text-sm font-medium text-slate-200">{friend.username}</h4>
+                  </div>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${friend.status === 'online' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-700 text-slate-500'}`}>
+                    {friend.status}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <div className="text-center text-xs text-slate-500 py-8">Your friends list is empty... 👤</div>
+            )
           )}
         </div>
 
@@ -145,18 +239,18 @@ function DashboardPage() {
         </div>
       </aside>
 
-      {/* MAIN WELCOME VIEW PANEL (Right Side Screen) */}
+      {/* MAIN WELCOME VIEW PANEL */}
       <main className="hidden md:flex flex-1 flex-col items-center justify-center bg-slate-950 p-8 text-center">
         <div className="bg-blue-600/10 border border-blue-500/20 p-4 rounded-3xl text-blue-400 mb-4 shadow-xl">
           <MessageSquare size={48} className="animate-bounce" />
         </div>
         <h2 className="text-2xl font-bold text-white mb-2">Welcome back, {userName}!</h2>
         <p className="text-slate-400 max-w-sm text-sm">
-          Select a chat room from the sidebar menu to start instant text messaging and high-quality P2P WebRTC Video Calling.
+          Select a friend or chat room from the sidebar menu to start instant secure messaging and high-quality P2P WebRTC Video Calling.
         </p>
       </main>
 
-      {/* POPUP MODAL FOR JOINING NEW ROOM */}
+      {/* POPUP MODAL */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-slate-800 border border-slate-700 p-6 rounded-2xl w-full max-w-sm shadow-2xl">

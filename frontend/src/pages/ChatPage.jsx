@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { socket } from '../socket';
 import VideoCallSection from '../components/VideoCallSection';
-import { Send, LogOut, Users, Video, Phone } from 'lucide-react';
+import { Send, LogOut, Users, Video, Phone, Search, X } from 'lucide-react';
 
 function ChatPage() {
   const { roomId } = useParams(); 
@@ -13,6 +13,8 @@ function ChatPage() {
 
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
   
   // --- Video Calling States ---
   const [isCallActive, setIsCallActive] = useState(false);
@@ -42,6 +44,17 @@ function ChatPage() {
         { id: Math.random().toString(), text: `${userName} joined the room`, system: true }
       ]);
     });
+    socket.on('chat-history', (historyData) => {
+  // Database se aane wale data ke keys ko apne standard format me map kar lo
+  const formattedHistory = historyData.map(msg => ({
+    id: msg._id,
+    text: msg.text,
+    sender: msg.sender,
+    createdAt: msg.createdAt
+  }));
+  
+  setMessages(formattedHistory); // Poori history ek baar me UI par render ho jayegi
+});
 
     // --- Dynamic Listener: Signal to auto-open call layout for the receiver ---
     socket.on('incoming-call', () => {
@@ -62,6 +75,7 @@ function ChatPage() {
       socket.off('user-connected');
       socket.off('incoming-call');
       socket.off('call-terminated-by-peer');
+      socket.off('chat-history');
       socket.disconnect();
     };
   }, [roomId, userName, isCallActive]);
@@ -125,6 +139,33 @@ function ChatPage() {
           </div>
 
           <div className="flex items-center space-x-3">
+            {isSearching ? (
+              <div className="relative flex items-center">
+                <input
+                  type="text"
+                  autoFocus
+                  placeholder="Search messages..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="bg-slate-700 border border-slate-600 text-white text-xs rounded-lg pl-3 pr-8 py-1.5 focus:outline-none focus:border-blue-500 w-40 md:w-60 transition-all"
+                />
+                <button 
+                  onClick={() => { setIsSearching(false); setSearchQuery(''); }}
+                  className="absolute right-2 text-slate-400 hover:text-white"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setIsSearching(true)}
+                className="p-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-xl transition duration-200"
+                title="Search Messages"
+              >
+                <Search size={20} />
+              </button>
+            )}
+
             <button
               onClick={() => console.log('Voice call initiated')}
               className="p-2 bg-slate-700 hover:bg-slate-600 text-blue-400 rounded-xl transition duration-200"
@@ -159,7 +200,12 @@ function ChatPage() {
 
         {/* Messages Feed */}
         <main className="flex-1 overflow-y-auto p-6 space-y-4 max-w-4xl w-full mx-auto">
-          {messages.map((msg) => {
+          {messages
+            .filter(msg => {
+              const content = msg.system ? msg.text : `${msg.sender} ${msg.text}`;
+              return content.toLowerCase().includes(searchQuery.toLowerCase());
+            })
+            .map((msg) => {
             if (msg.system) {
               return (
                 <div key={msg.id} className="flex justify-center">
