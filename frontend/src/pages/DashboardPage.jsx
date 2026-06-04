@@ -95,14 +95,6 @@ function DashboardPage() {
               <span className="text-xs text-slate-500 bg-slate-900/40 px-2 py-1 rounded-lg border border-slate-700/50">View</span>
             </div>
 
-            {/* Global User Search Component */}
-            <UserSearch 
-              currentUserId={userId} 
-              myFriends={friends} 
-              onFriendAdded={fetchMyFriends}
-              onStartChat={handleStartPrivateChat}
-            />
-
             {/* Navigation Tabs */}
             <div className="flex p-2 gap-2 border-b border-slate-700 bg-slate-800/30">
               <button 
@@ -147,8 +139,18 @@ function DashboardPage() {
 
       {/* ================= RIGHT WORKSPACE VIEW CONTEXT ================= */}
       <main className={`flex-1 flex flex-col bg-slate-950 h-full relative ${!activeChatId ? 'hidden md:flex' : 'flex'}`}>
+        {/* Persistent Global User Search - Stays visible even when a chat is active */}
+        <div className="w-full z-10">
+          <UserSearch 
+            currentUserId={userId} 
+            myFriends={friends} 
+            onFriendAdded={fetchMyFriends}
+            onStartChat={handleStartPrivateChat}
+          />
+        </div>
+
         {activeChatId ? (
-          <div className="flex flex-col h-full w-full">
+          <div className="flex-1 flex flex-col w-full overflow-hidden mt-4">
             {/* Top Bar Workspace Context */}
             <div className="h-14 border-b border-slate-800 bg-slate-900/60 flex items-center justify-between px-4 z-10">
               <div className="flex items-center space-x-3 min-w-0">
@@ -177,30 +179,11 @@ function DashboardPage() {
           <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
             <div className="bg-blue-600/10 border border-blue-500/20 p-4 rounded-3xl text-blue-400 mb-4 shadow-xl">
               <MessageSquare size={40} className="animate-pulse" />
-          <div className="flex-1 flex flex-col h-full">
-            {/* Global User Search moved to the top of the placeholder area */}
-            <div className="w-full max-w-xl mx-auto pt-12 px-6 z-10">
-              <UserSearch 
-                currentUserId={userId} 
-                myFriends={friends} 
-                onFriendAdded={fetchMyFriends}
-                onStartChat={handleStartPrivateChat}
-              />
             </div>
             <h2 className="text-xl font-bold text-white mb-1">Select a Workspace Conversations</h2>
             <p className="text-slate-500 max-w-xs text-xs leading-relaxed">
               Click on any active room or database friend profile from the left navigation pane to trigger full screen workspace view stream.
             </p>
-            
-            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-              <div className="bg-blue-600/10 border border-blue-500/20 p-4 rounded-3xl text-blue-400 mb-4 shadow-xl">
-                <MessageSquare size={40} className="animate-pulse" />
-              </div>
-              <h2 className="text-xl font-bold text-white mb-1">Select a Workspace Conversations</h2>
-              <p className="text-slate-500 max-w-xs text-xs leading-relaxed">
-                Click on any active room or database friend profile from the left navigation pane to trigger full screen workspace view stream.
-              </p>
-            </div>
           </div>
         )}
       </main>

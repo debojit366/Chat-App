@@ -51,8 +51,7 @@ function UserSearch({ currentUserId, myFriends, onFriendAdded, onStartChat }) {
   };
 
   return (
-    <div className="p-3 border-b border-slate-700 bg-slate-800/20">
-      <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Find New Friends</p>
+    <div className="p-4 border-b border-slate-700 bg-slate-800/40 relative shadow-lg">
       <div className="relative">
         <Search className="absolute left-3 top-2.5 text-slate-500" size={14} />
         <input 
@@ -67,7 +66,7 @@ function UserSearch({ currentUserId, myFriends, onFriendAdded, onStartChat }) {
 
       {/* SEARCH RESULTS DROPDOWN PANEL */}
       {results.length > 0 && (
-        <div className="mt-2 bg-slate-900 border border-slate-700 rounded-xl max-h-48 overflow-y-auto p-1 space-y-1 shadow-2xl absolute z-50 w-[calc(100%-1.5rem)] left-3">
+        <div className="mt-2 bg-slate-900 border border-slate-700 rounded-xl max-h-48 overflow-y-auto p-1 space-y-1 shadow-2xl absolute z-50 w-[calc(100%-2rem)] left-4">
           {results.map((user) => {
             // Check if already friends
             const isFriend = myFriends.some(f => (f._id || f.id) === user._id);

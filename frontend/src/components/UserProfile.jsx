@@ -1,5 +1,5 @@
 import React from 'react';
-import { LogOut, User, Shield, X } from 'lucide-react';
+import { LogOut, User, Shield, X, Lock, MessageSquare, Globe, ChevronRight } from 'lucide-react';
 
 function UserProfile({ onClose }) {
   // Local storage se logged-in user ka details fetch karo
@@ -15,7 +15,7 @@ function UserProfile({ onClose }) {
   };
 
   return (
-    <div className="w-full md:w-80 bg-slate-800 border-r border-slate-700 h-full flex flex-col shadow-2xl p-4 animate-in slide-in-from-left duration-200">
+    <div className="w-full md:w-80 bg-slate-800 border-r border-slate-700 h-full flex flex-col shadow-2xl p-4 animate-in slide-in-from-left duration-200 overflow-y-auto custom-scrollbar">
       
       {/* Profile Header Area */}
       <div className="flex items-center justify-between border-b border-slate-700 pb-4 mb-6">
@@ -31,8 +31,8 @@ function UserProfile({ onClose }) {
         </button>
       </div>
 
-      {/* Profile Details Container */}
-      <div className="flex-1 flex flex-col items-center text-center">
+      {/* Profile Details Area */}
+      <div className="flex flex-col items-center text-center mb-6">
         <div className="w-20 h-20 bg-gradient-to-tr from-blue-600 to-indigo-600 text-white rounded-2xl flex items-center justify-center font-bold text-2xl shadow-xl border-2 border-slate-700 mb-4">
           {userName.charAt(0).toUpperCase()}
         </div>
@@ -50,6 +50,29 @@ function UserProfile({ onClose }) {
             {userId}
           </div>
         </div>
+      </div>
+
+      {/* Settings Navigation */}
+      <div className="flex-1 space-y-1">
+        <div className="text-[10px] text-slate-500 uppercase font-semibold px-2 mb-2 tracking-wider">Preferences</div>
+        
+        {[
+          { icon: User, label: 'Account', color: 'text-blue-400' },
+          { icon: Lock, label: 'Privacy', color: 'text-emerald-400' },
+          { icon: Shield, label: 'Security', color: 'text-purple-400' },
+          { icon: MessageSquare, label: 'Chat Setting', color: 'text-orange-400' },
+          { icon: Globe, label: 'Language', color: 'text-cyan-400' },
+        ].map((item, idx) => (
+          <button key={idx} className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-700/50 transition group text-left">
+            <div className="flex items-center gap-3">
+              <div className={`p-1.5 rounded-lg bg-slate-900/50 ${item.color}`}>
+                <item.icon size={14} />
+              </div>
+              <span className="text-xs text-slate-300 font-medium">{item.label}</span>
+            </div>
+            <ChevronRight size={12} className="text-slate-600 group-hover:text-slate-400 transition" />
+          </button>
+        ))}
       </div>
 
       {/* Logout Action Area */}
