@@ -2,7 +2,7 @@ import React from 'react';
 import { LogOut, User, Shield, X, Lock, MessageSquare, Globe, ChevronRight } from 'lucide-react';
 
 function UserProfile({ onClose }) {
-  // Local storage se logged-in user ka details fetch karo
+  // Fetch logged-in user details from local storage
   const loggedInUser = JSON.parse(localStorage.getItem('user'));
   const userName = loggedInUser?.username || 'Anonymous';
   const userEmail = loggedInUser?.email || 'No email provided';

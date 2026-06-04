@@ -16,7 +16,7 @@ function UserSearch({ currentUserId, myFriends, onFriendAdded, onStartChat }) {
 
       try {
         setLoading(true);
-        // Hame naye routes ke mutabik '/users/search' hit karna hai
+        // We need to hit '/users/search' according to the new routes
         const response = await API.get('/users/search', {
           params: { q: query, userId: currentUserId }
         });
@@ -39,14 +39,14 @@ function UserSearch({ currentUserId, myFriends, onFriendAdded, onStartChat }) {
       });
 
       if (response.status === 200) {
-        alert("Bhai, dost ban gaya! 🤝");
+        alert("Friend added successfully! 🤝");
         setQuery('');
         setResults([]);
-        if (onFriendAdded) onFriendAdded(); // Dashboard ki list refresh karega
+        if (onFriendAdded) onFriendAdded(); // Refreshes the dashboard list
       }
     } catch (err) {
       console.error("❌ Add friend error:", err);
-      alert("Dost banane me error aaya bhai!");
+      alert("Error occurred while adding friend!");
     }
   };
 

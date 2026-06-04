@@ -5,7 +5,7 @@ import API from '../api';
 import UserSearch from '../components/UserSearch';
 import ChatList from '../components/ChatList';
 import FriendList from '../components/FriendList';
-import UserProfile from '../components/UserProfile'; // <-- 1. Naya Profile Component Import kiya
+import UserProfile from '../components/UserProfile'; // <-- 1. Imported new Profile Component
 
 function DashboardPage() {
   const navigate = useNavigate();
@@ -14,7 +14,7 @@ function DashboardPage() {
   
   const [activeChatId, setActiveChatId] = useState(null);
   const [activeChatName, setActiveChatName] = useState('');
-  const [showProfile, setShowProfile] = useState(false); // <-- Profile toggler slate
+  const [showProfile, setShowProfile] = useState(false); // <-- Profile toggler state
 
   const [friends, setFriends] = useState([]);
   const [loadingFriends, setLoadingFriends] = useState(true);
@@ -25,7 +25,7 @@ function DashboardPage() {
 
   // Mock static chats data
   const [recentChats] = useState([
-    { id: 'room-101', name: 'WebRTC Developers', lastMessage: 'Call connect nahi ho raha bhai...', time: '12:45 PM' },
+    { id: 'room-101', name: 'WebRTC Developers', lastMessage: 'Brother, the call is not connecting...', time: '12:45 PM' },
     { id: 'gaming-zone', name: 'Chai Aur Code', lastMessage: 'Debojit: PeerJS server setup done!', time: 'Yesterday' },
   ]);
 
@@ -69,11 +69,11 @@ function DashboardPage() {
       {/* ================= LEFT SIDEBAR AREA ================= */}
       <aside className={`w-full md:w-80 bg-slate-800 border-r border-slate-700 flex flex-col h-full relative z-20 ${activeChatId ? 'hidden md:flex' : 'flex'}`}>
         
-        {/* CONDITION-1: Agar Profile Open hai, toh sirf Profile UI Page chalega */}
+        {/* CONDITION-1: If Profile is open, then only show Profile UI Page */}
         {showProfile ? (
           <UserProfile onClose={() => setShowProfile(false)} />
         ) : (
-          /* CONDITION-2: Default State me normal dynamic navigation list layout */
+          /* CONDITION-2: Default state shows normal dynamic navigation list layout */
           <>
             {/* User Info Header */}
             <div 
