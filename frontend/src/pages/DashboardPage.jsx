@@ -1,18 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, MessageSquare, Plus, User, Search } from 'lucide-react';
+import { MessageSquare, User, Search, ArrowLeft } from 'lucide-react';
 import API from '../api';
 import UserSearch from '../components/UserSearch';
-import ChatList from '../components/ChatList';     // <-- 1. Import Naya ChatList
-import FriendList from '../components/FriendList'; // <-- 2. Import Naya FriendList
+import ChatList from '../components/ChatList';
+import FriendList from '../components/FriendList';
+import UserProfile from '../components/UserProfile'; // <-- 1. Naya Profile Component Import kiya
 
 function DashboardPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('chats');
   const [searchQuery, setSearchQuery] = useState('');
-  const [newRoomId, setNewRoomId] = useState('');
-  const [showCreateModal, setShowCreateModal] = useState(false);
   
+  const [activeChatId, setActiveChatId] = useState(null);
+  const [activeChatName, setActiveChatName] = useState('');
+  const [showProfile, setShowProfile] = useState(false); // <-- Profile toggler slate
+
   const [friends, setFriends] = useState([]);
   const [loadingFriends, setLoadingFriends] = useState(true);
 
@@ -47,145 +50,160 @@ function DashboardPage() {
     if (!userId || !friendId) return;
     const sortedIds = [userId, friendId].sort();
     const uniquePrivateRoomId = `${sortedIds[0]}_${sortedIds[1]}`;
-    navigate(`/chat/${uniquePrivateRoomId}`, { state: { userName } });
+    const targetFriend = friends.find(f => (f._id || f.id) === friendId);
+    
+    setActiveChatId(uniquePrivateRoomId);
+    setActiveChatName(targetFriend ? targetFriend.username : 'Direct Message');
   };
 
   const handleJoinRoom = (roomId) => {
     if (!roomId.trim()) return;
-    navigate(`/chat/${roomId}`, { state: { userName } });
-  };
-
-  const handleLogout = () => {
-    localStorage.clear();
-    navigate('/login');
+    const targetChat = recentChats.find(c => c.id === roomId);
+    setActiveChatId(roomId);
+    setActiveChatName(targetChat ? targetChat.name : roomId);
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 flex text-slate-100 overflow-hidden h-screen">
+    <div className="min-h-screen bg-slate-900 flex text-slate-100 overflow-hidden h-screen w-full relative">
       
-      {/* SIDEBAR SECTION */}
-      <aside className="w-full md:w-80 bg-slate-800 border-r border-slate-700 flex flex-col h-full relative">
+      {/* ================= LEFT SIDEBAR AREA ================= */}
+      <aside className={`w-full md:w-80 bg-slate-800 border-r border-slate-700 flex flex-col h-full relative z-20 ${activeChatId ? 'hidden md:flex' : 'flex'}`}>
         
-        {/* User Profile Header */}
-        <div className="p-4 border-b border-slate-700 flex items-center justify-between bg-slate-800/50">
-          <div className="flex items-center space-x-3">
-            <div className="bg-blue-600 p-2 rounded-full text-white">
-              <User size={20} />
+        {/* CONDITION-1: Agar Profile Open hai, toh sirf Profile UI Page chalega */}
+        {showProfile ? (
+          <UserProfile onClose={() => setShowProfile(false)} />
+        ) : (
+          /* CONDITION-2: Default State me normal dynamic navigation list layout */
+          <>
+            {/* User Info Header */}
+            <div 
+              onClick={() => setShowProfile(true)}
+              className="p-4 border-b border-slate-700 flex items-center justify-between bg-slate-800/50 hover:bg-slate-700/40 cursor-pointer transition"
+              title="Click to view Profile Settings"
+            >
+              <div className="flex items-center space-x-3 min-w-0">
+                <div className="bg-blue-600 p-2 rounded-xl text-white shadow-md flex-shrink-0">
+                  <User size={18} />
+                </div>
+                <div className="min-w-0">
+                  <h2 className="font-bold text-sm text-white truncate max-w-[140px]">{userName}</h2>
+                  <span className="text-[11px] text-emerald-400 flex items-center gap-1 mt-0.5">
+                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full inline-block"></span> Profile Dashboard
+                  </span>
+                </div>
+              </div>
+              <span className="text-xs text-slate-500 bg-slate-900/40 px-2 py-1 rounded-lg border border-slate-700/50">View</span>
             </div>
-            <div>
-              <h2 className="font-bold text-sm text-white truncate max-w-[120px]">{userName}</h2>
-              <span className="text-xs text-emerald-400 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full inline-block"></span> Online
-              </span>
-            </div>
-          </div>
-          <button onClick={handleLogout} className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded-xl transition" title="Logout">
-            <LogOut size={18} />
-          </button>
-        </div>
 
-        {/* Global User Search Component */}
-        <UserSearch 
-          currentUserId={userId} 
-          myFriends={friends} 
-          onFriendAdded={fetchMyFriends}
-          onStartChat={handleStartPrivateChat}
-        />
-
-        {/* Navigation Tabs */}
-        <div className="flex p-2 gap-2 border-b border-slate-700 bg-slate-800/30">
-          <button 
-            onClick={() => { setActiveTab('chats'); setSearchQuery(''); }}
-            className={`flex-1 py-2 text-sm font-medium rounded-lg transition ${activeTab === 'chats' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:bg-slate-700'}`}
-          >
-            Chats
-          </button>
-          <button 
-            onClick={() => { setActiveTab('friends'); setSearchQuery(''); }}
-            className={`flex-1 py-2 text-sm font-medium rounded-lg transition ${activeTab === 'friends' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:bg-slate-700'}`}
-          >
-            Friends
-          </button>
-        </div>
-
-        {/* Local Search Bar */}
-        <div className="p-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
-            <input 
-              type="text" 
-              placeholder={activeTab === 'chats' ? "Search joined rooms..." : "Search current friends..."}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-slate-700 border border-slate-600 rounded-xl text-xs text-white focus:outline-none focus:border-blue-500 transition"
+            {/* Global User Search Component */}
+            <UserSearch 
+              currentUserId={userId} 
+              myFriends={friends} 
+              onFriendAdded={fetchMyFriends}
+              onStartChat={handleStartPrivateChat}
             />
-          </div>
-        </div>
 
-        {/* CLEAN MODULAR LIST FEED AREA */}
-        <div className="flex-1 overflow-y-auto px-2 space-y-1">
-          {activeTab === 'chats' ? (
-            <ChatList 
-              chats={recentChats} 
-              searchQuery={searchQuery} 
-              onJoinRoom={handleJoinRoom} 
-            />
-          ) : (
-            <FriendList 
-              friends={friends} 
-              searchQuery={searchQuery} 
-              loading={loadingFriends} 
-              onStartChat={handleStartPrivateChat} 
-            />
-          )}
-        </div>
-
-        {/* Bottom Join Action Button */}
-        <div className="p-4 border-t border-slate-700 bg-slate-800/50">
-          <button 
-            onClick={() => setShowCreateModal(true)}
-            className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition text-sm flex items-center justify-center gap-2 shadow-lg"
-          >
-            <Plus size={18} /> Join New Room
-          </button>
-        </div>
-      </aside>
-
-      {/* RIGHT VIEW PANEL */}
-      <main className="hidden md:flex flex-1 flex-col items-center justify-center bg-slate-950 p-8 text-center">
-        <div className="bg-blue-600/10 border border-blue-500/20 p-4 rounded-3xl text-blue-400 mb-4 shadow-xl">
-          <MessageSquare size={48} className="animate-bounce" />
-        </div>
-        <h2 className="text-2xl font-bold text-white mb-2">Welcome back, {userName}!</h2>
-        <p className="text-slate-400 max-w-sm text-sm">
-          Select a friend or chat room from the sidebar menu to start instant secure messaging and high-quality P2P WebRTC Video Calling.
-        </p>
-      </main>
-
-      {/* POPUP MODAL */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-slate-800 border border-slate-700 p-6 rounded-2xl w-full max-w-sm shadow-2xl">
-            <h3 className="text-lg font-bold text-white mb-2">Enter Room ID</h3>
-            <input 
-              type="text" 
-              placeholder="e.g. core-team-room" 
-              value={newRoomId}
-              onChange={(e) => setNewRoomId(e.target.value)}
-              className="w-full px-4 py-2.5 bg-slate-700 border border-slate-600 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500 mb-4"
-            />
-            <div className="flex gap-3 justify-end">
-              <button onClick={() => setShowCreateModal(false)} className="px-4 py-2 text-sm text-slate-400 hover:text-white transition">Cancel</button>
+            {/* Navigation Tabs */}
+            <div className="flex p-2 gap-2 border-b border-slate-700 bg-slate-800/30">
               <button 
-                onClick={() => { handleJoinRoom(newRoomId); setShowCreateModal(false); }} 
-                className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition"
+                onClick={() => { setActiveTab('chats'); setSearchQuery(''); }}
+                className={`flex-1 py-2 text-xs font-semibold rounded-xl transition ${activeTab === 'chats' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-700/50'}`}
               >
-                Connect
+                Rooms & Chats
+              </button>
+              <button 
+                onClick={() => { setActiveTab('friends'); setSearchQuery(''); }}
+                className={`flex-1 py-2 text-xs font-semibold rounded-xl transition ${activeTab === 'friends' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-700/50'}`}
+              >
+                My Friends
               </button>
             </div>
+
+            {/* Local Filter Box */}
+            <div className="p-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-2.5 text-slate-500" size={14} />
+                <input 
+                  type="text" 
+                  placeholder={activeTab === 'chats' ? "Filter joined rooms..." : "Filter friends list..."}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-1.5 bg-slate-900/40 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-blue-500 transition"
+                />
+              </div>
+            </div>
+
+            {/* CLEAN MODULAR FEED AREA */}
+            <div className="flex-1 overflow-y-auto px-2 pb-4 space-y-1">
+              {activeTab === 'chats' ? (
+                <ChatList chats={recentChats} searchQuery={searchQuery} onJoinRoom={handleJoinRoom} />
+              ) : (
+                <FriendList friends={friends} searchQuery={searchQuery} loading={loadingFriends} onStartChat={handleStartPrivateChat} />
+              )}
+            </div>
+          </>
+        )}
+      </aside>
+
+      {/* ================= RIGHT WORKSPACE VIEW CONTEXT ================= */}
+      <main className={`flex-1 flex flex-col bg-slate-950 h-full relative ${!activeChatId ? 'hidden md:flex' : 'flex'}`}>
+        {activeChatId ? (
+          <div className="flex flex-col h-full w-full">
+            {/* Top Bar Workspace Context */}
+            <div className="h-14 border-b border-slate-800 bg-slate-900/60 flex items-center justify-between px-4 z-10">
+              <div className="flex items-center space-x-3 min-w-0">
+                <button 
+                  onClick={() => { setActiveChatId(null); setActiveChatName(''); }}
+                  className="p-2 -ml-2 text-slate-400 hover:text-white bg-slate-800/40 rounded-xl md:hidden transition"
+                >
+                  <ArrowLeft size={16} />
+                </button>
+                <div>
+                  <h3 className="font-bold text-sm text-white truncate">{activeChatName}</h3>
+                  <p className="text-[10px] text-slate-500 font-mono">Room ID: {activeChatId}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Embed Loop Viewport */}
+            <div className="flex-1 bg-slate-950/40 relative overflow-y-auto flex flex-col justify-end p-4">
+              <div className="text-center text-xs text-slate-600 border border-dashed border-slate-800 py-12 rounded-2xl w-full max-w-md mx-auto my-auto">
+                💬 Chat Engine Stream Active: "{activeChatName}"
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+        ) : (
+          /* Placeholder View screen */
+          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+            <div className="bg-blue-600/10 border border-blue-500/20 p-4 rounded-3xl text-blue-400 mb-4 shadow-xl">
+              <MessageSquare size={40} className="animate-pulse" />
+          <div className="flex-1 flex flex-col h-full">
+            {/* Global User Search moved to the top of the placeholder area */}
+            <div className="w-full max-w-xl mx-auto pt-12 px-6 z-10">
+              <UserSearch 
+                currentUserId={userId} 
+                myFriends={friends} 
+                onFriendAdded={fetchMyFriends}
+                onStartChat={handleStartPrivateChat}
+              />
+            </div>
+            <h2 className="text-xl font-bold text-white mb-1">Select a Workspace Conversations</h2>
+            <p className="text-slate-500 max-w-xs text-xs leading-relaxed">
+              Click on any active room or database friend profile from the left navigation pane to trigger full screen workspace view stream.
+            </p>
+            
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+              <div className="bg-blue-600/10 border border-blue-500/20 p-4 rounded-3xl text-blue-400 mb-4 shadow-xl">
+                <MessageSquare size={40} className="animate-pulse" />
+              </div>
+              <h2 className="text-xl font-bold text-white mb-1">Select a Workspace Conversations</h2>
+              <p className="text-slate-500 max-w-xs text-xs leading-relaxed">
+                Click on any active room or database friend profile from the left navigation pane to trigger full screen workspace view stream.
+              </p>
+            </div>
+          </div>
+        )}
+      </main>
 
     </div>
   );
