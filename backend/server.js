@@ -5,8 +5,12 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import crypto from 'crypto';
+
+
 import authRoutes from './routes/auth.js'; 
-import userRoutes from './routes/users.js';
+import userRoutes from './routes/user.js';
+
+
 import { ExpressPeerServer } from 'peer';
 import Message from './models/Message.js';
 import User from './models/User.js';
@@ -38,6 +42,7 @@ app.use('/api/auth', authRoutes);
 
 // 5. User API Routes
 app.use('/api/users', userRoutes);
+
 
 app.get('/', (req, res) => {
     res.send({ message: "Server is up and running!" });
