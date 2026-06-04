@@ -1,9 +1,10 @@
 import express from 'express';
 import User from '../models/User.js';
+import FriendRequest from '../models/FriendRequest.js';
 
 const router = express.Router();
 
-// 1. GLOBAL SEARCH USERS: Poore database me se kisi ko bhi dhoondo
+// 1. GLOBAL SEARCH USERS: Search for anyone in the entire database
 router.get('/search', async (req, res) => {
     try {
         const { q, userId } = req.query;
@@ -11,7 +12,7 @@ router.get('/search', async (req, res) => {
 
         const searchRegex = new RegExp(q, 'i');
         
-        // Apne alawa baki sabhi users ko dhoondo jiska username match kare
+        // Find all users except the current user whose username matches the query
         const users = await User.find({
             _id: { $ne: userId },
             username: searchRegex
@@ -23,23 +24,29 @@ router.get('/search', async (req, res) => {
     }
 });
 
-// 2. ADD FRIEND ROUTE: Friend banane ke liye database me push karo
-router.post('/add-friend', async (req, res) => {
+// 2. ADD FRIEND ROUTE: Send a friend request
+router.post('/send-request', async (req, res) => {
     try {
-        const { userId, friendId } = req.body;
+        const { senderId, receiverId } = req.body;
 
-        if (!userId || !friendId) {
-            return res.status(400).json({ message: "Missing required IDs" });
+        const existingRequest = await FriendRequest.findOne({
+            $or: [
+                { sender: senderId, receiver: receiverId },
+                { sender: receiverId, receiver: senderId }
+            ],
+            status: { $in: ['pending', 'accepted'] }
+        });
+
+        if (existingRequest) {
+            return res.status(400).json({ message: "Request already pending or you are already friends!" });
         }
 
-        // User A ki friend list me User B ko dalo
-        await User.findByIdAndUpdate(userId, { $addToSet: { friends: friendId } });
-        // User B ki friend list me User A ko dalo (vice-versa)
-        await User.findByIdAndUpdate(friendId, { $addToSet: { friends: userId } });
+        const newRequest = new FriendRequest({ sender: senderId, receiver: receiverId });
+        await newRequest.save();
 
-        res.status(200).json({ message: "Friend added successfully! 🤝" });
+        res.status(200).json({ message: "Friend request sent! 🚀" });
     } catch (err) {
-        res.status(500).json({ message: "Could not add friend" });
+        res.status(500).json({ message: "Failed to send request" });
     }
 });
 
@@ -52,5 +59,45 @@ router.get('/friends/:userId', async (req, res) => {
         res.status(500).json({ message: "Could not fetch friends" });
     }
 });
+
+
+router.get('/notifications/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        // Fetch only requests that are 'pending' where the current user is the receiver
+        const requests = await FriendRequest.find({ receiver: userId, status: 'pending' })
+            .populate('sender', 'username email'); // Attach sender details
+
+        res.status(200).json(requests);
+    } catch (err) {
+        res.status(500).json({ message: "Failed to load notifications" });
+    }
+});
+
+
+
+router.post('/respond-request', async (req, res) => {
+    try {
+        const { requestId, status } = req.body; // status can be 'accepted' or 'rejected'
+
+        const request = await FriendRequest.findById(requestId);
+        if (!request) return res.status(404).json({ message: "Request not found" });
+
+        request.status = status;
+        await request.save();
+
+        if (status === 'accepted') {
+            // Permanently add both users to each other's friends list
+            await User.findByIdAndUpdate(request.sender, { $addToSet: { friends: request.receiver } });
+            await User.findByIdAndUpdate(request.receiver, { $addToSet: { friends: request.sender } });
+        }
+
+        res.status(200).json({ message: `Request ${status} successfully!` });
+    } catch (err) {
+        res.status(500).json({ message: "Action failed" });
+    }
+});
+
+
 
 export default router;

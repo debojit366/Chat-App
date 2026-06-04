@@ -32,23 +32,22 @@ function UserSearch({ currentUserId, myFriends, onFriendAdded, onStartChat }) {
   }, [query, currentUserId]);
 
   const handleAddFriend = async (friendId) => {
-    try {
-      const response = await API.post('/users/add-friend', {
-        userId: currentUserId,
-        friendId: friendId
-      });
+  try {
+    const response = await API.post('/users/send-request', {
+      senderId: currentUserId,
+      receiverId: friendId
+    });
 
-      if (response.status === 200) {
-        alert("Friend added successfully! 🤝");
-        setQuery('');
-        setResults([]);
-        if (onFriendAdded) onFriendAdded(); // Refreshes the dashboard list
-      }
-    } catch (err) {
-      console.error("❌ Add friend error:", err);
-      alert("Error occurred while adding friend!");
+    if (response.status === 200) {
+      alert("Friend request sent successfully! 🚀");
+      setQuery('');
+      setResults([]);
     }
-  };
+  } catch (err) {
+    console.error("❌ Request error:", err);
+    alert(err.response?.data?.message || "Failed to send request!");
+  }
+};
 
   return (
     <div className="p-4 border-b border-slate-700 bg-slate-800/40 relative shadow-lg">

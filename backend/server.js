@@ -9,7 +9,7 @@ import crypto from 'crypto';
 
 import authRoutes from './routes/auth.js'; 
 import userRoutes from './routes/user.js';
-
+import chatRoutes from './routes/chat.js';
 
 import { ExpressPeerServer } from 'peer';
 import Message from './models/Message.js';
@@ -42,7 +42,7 @@ app.use('/api/auth', authRoutes);
 
 // 5. User API Routes
 app.use('/api/users', userRoutes);
-
+app.use('/api/chats', chatRoutes);
 
 app.get('/', (req, res) => {
     res.send({ message: "Server is up and running!" });
