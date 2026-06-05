@@ -6,7 +6,6 @@ import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import crypto from 'crypto';
 
-
 import authRoutes from './routes/auth.js'; 
 import userRoutes from './routes/user.js';
 import chatRoutes from './routes/chat.js';
@@ -15,21 +14,19 @@ import { ExpressPeerServer } from 'peer';
 import Message from './models/Message.js';
 import User from './models/User.js';
 
-
-
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 // 1. CORS Configuration
-app.use(cors({ origin: "*" })); 
+app.use(cors({
+  origin: 'http://localhost:5173', 
+  credentials: true,              
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
-
-const allowedOrigins = [
-  'https://chat-app-theta-ten-58.vercel.app', 
-  'http://localhost:3000'                      
-];
 // 2. Body Parser
 app.use(express.json());
 
@@ -42,10 +39,8 @@ app.use((req, res, next) => {
     next();
 });
 
-// 4. Bind Authentication API Routes
+// 4. Bind API Routes
 app.use('/api/auth', authRoutes);
-
-// 5. User API Routes
 app.use('/api/users', userRoutes);
 app.use('/api/chats', chatRoutes);
 
@@ -64,16 +59,18 @@ app.use((err, req, res, next) => {
     res.status(500).json({ message: "Internal Server Error", error: err.message });
 });
 
+// Create Core HTTP Server
 const httpServer = createServer(app);
 
-// Initialize PeerServer
+// 🔥 5. Initialize PeerServer (Signaling Server for Video Calls)
 const peerServer = ExpressPeerServer(httpServer, {
-    debug: true,
-    path: '/myapp'
+    debug: true
 });
 
+// PeerJS routing bind karna
 app.use('/peerjs', peerServer);
 
+// 6. Socket.io Integration
 const io = new Server(httpServer, {
     cors: { origin: "*", methods: ["GET", "POST"] }
 });
@@ -82,69 +79,66 @@ io.on('connection', (socket) => {
     console.log(`⚡ User connected: ${socket.id}`);
 
     socket.on('join-room', async ({ roomId, userName }) => {
-    
-    // If it's a private room (ID contains '_'), verify access permissions
-    if (roomId.includes('_')) {
-        const [user1Id, user2Id] = roomId.split('_');
+        // Security check for private rooms
+        if (roomId.includes('_')) {
+            const [user1Id, user2Id] = roomId.split('_');
+            try {
+                const user1 = await User.findById(user1Id);
+                const user2 = await User.findById(user2Id);
 
-        try {
-            const user1 = await User.findById(user1Id);
-            const user2 = await User.findById(user2Id);
+                const isFriend = user1?.friends.some(f => f.toString() === user2Id) || user2?.friends.some(f => f.toString() === user1Id);
 
-            const isFriend = user1?.friends.some(f => f.toString() === user2Id) || user2?.friends.some(f => f.toString() === user1Id);
-
-            if (!isFriend) {
-                console.log(`🚫 [Security Alert] Unauthorized access attempt by ${userName} in room ${roomId}`);
-                socket.emit('receive-message', {
-                    id: 'sys-error',
-                    text: '⚠️ Security Error: You can only chat with users who are on your friends list!',
-                    system: true
-                });
+                if (!isFriend) {
+                    console.log(`🚫 [Security Alert] Unauthorized access attempt by ${userName} in room ${roomId}`);
+                    socket.emit('receive-message', {
+                        id: 'sys-error',
+                        text: '⚠️ Security Error: You can only chat with users who are on your friends list!',
+                        system: true
+                    });
+                    return;
+                }
+            } catch (err) {
+                console.error("Security check failed:", err);
                 return;
             }
-        } catch (err) {
-            console.error("Security check failed:", err);
-            return;
         }
-    }
 
-    // Standard room join if authentication passes
-    socket.join(roomId);
-    console.log(`🔒 [Secure Chat Activated] ${userName} entered private room: ${roomId}`);
-    socket.to(roomId).emit('user-connected', { userName });
+        socket.join(roomId);
+        console.log(`🔒 [Secure Chat Activated] ${userName} entered private room: ${roomId}`);
+        socket.to(roomId).emit('user-connected', { userName });
 
-    // Load Chat History
-    try {
-        const chatHistory = await Message.find({ roomId }).sort({ createdAt: 1 });
-        socket.emit('chat-history', chatHistory);
-    } catch (err) {
-        console.error("History loading error:", err);
-    }
-});
+        // Load Chat History
+        try {
+            const chatHistory = await Message.find({ roomId }).sort({ createdAt: 1 });
+            socket.emit('chat-history', chatHistory);
+        } catch (err) {
+            console.error("History loading error:", err);
+        }
+    });
 
     socket.on('send-message', async ({ roomId, message, sender }) => {
-    try {
-        const newMessage = new Message({
-            roomId,
-            sender,
-            text: message
-        });
-        const savedMessage = await newMessage.save();
+        try {
+            const newMessage = new Message({
+                roomId,
+                sender,
+                text: message
+            });
+            const savedMessage = await newMessage.save();
 
-        // Broadcast the saved message structure to the room
-        const messageData = {
-            id: savedMessage._id,
-            text: savedMessage.text,
-            sender: savedMessage.sender,
-            createdAt: savedMessage.createdAt
-        };
-        
-        io.to(roomId).emit('receive-message', messageData);
-    } catch (err) {
-        console.error("❌ Error saving message:", err);
-    }
-});
+            const messageData = {
+                id: savedMessage._id,
+                text: savedMessage.text,
+                sender: savedMessage.sender,
+                createdAt: savedMessage.createdAt
+            };
+            
+            io.to(roomId).emit('receive-message', messageData);
+        } catch (err) {
+            console.error("❌ Error saving message:", err);
+        }
+    });
 
+    // 📞 WebRTC / PeerJS Call Signals via Socket.io
     socket.on('ready-for-call', ({ roomId, userName }) => {
         console.log(`📡 [PeerJS Signal] ${userName} is ready for call in room ${roomId}`);
         socket.to(roomId).emit('peer-ready-to-receive', { targetPeerName: userName });
@@ -153,10 +147,8 @@ io.on('connection', (socket) => {
     socket.on('end-call-signal', ({ roomId }) => {
         socket.to(roomId).emit('call-terminated-by-peer');
     });
-
     
     socket.on('disconnecting', () => {
-        
         const rooms = Array.from(socket.rooms);
         rooms.forEach(room => {
             if (room !== socket.id) {
@@ -170,6 +162,7 @@ io.on('connection', (socket) => {
     });
 });
 
+// Start Single Core Server Process
 httpServer.listen(PORT, () => {
     console.log(`🚀 Server listening on port ${PORT}`);
 });

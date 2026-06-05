@@ -1,19 +1,12 @@
 import mongoose from 'mongoose';
 
-const messageSchema = new mongoose.Schema({
-    roomId: {
-        type: String,
-        required: true,
-        index: true // Indexing se search aur loading super fast ho jayegi
-    },
-    sender: {
-        type: String, // Tum chaho toh ObjectId (ref: 'User') bhi de sakte ho, par username abhi chalega
-        required: true
-    },
-    text: {
-        type: String,
-        required: true
-    }
-}, { timestamps: true }); // Isse createdAt aur updatedAt (timestamps) automatically mil jayenge
+const MessageSchema = new mongoose.Schema({
+    chatRoomId: { type: mongoose.Schema.Types.ObjectId, ref: 'Room', required: true },
+    senderId: { type: String, required: true },
+    text: { type: String, required: true }
+}, { timestamps: true });
 
-export default mongoose.model('Message', messageSchema);
+// ❌ Agar wahan aisa likha hai: export { Message } ya export const Message = ...
+//  Toh use hatao aur niche ye default export add karo:
+const Message = mongoose.model('Message', MessageSchema);
+export default Message;
