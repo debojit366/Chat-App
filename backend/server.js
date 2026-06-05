@@ -25,6 +25,11 @@ const PORT = process.env.PORT || 5000;
 // 1. CORS Configuration
 app.use(cors({ origin: "*" })); 
 
+
+const allowedOrigins = [
+  'https://chat-app-theta-ten-58.vercel.app', 
+  'http://localhost:3000'                      
+];
 // 2. Body Parser
 app.use(express.json());
 
