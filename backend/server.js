@@ -122,17 +122,21 @@ io.on('connection', (socket) => {
     socket.on('send-message', async ({ roomId, message, sender }) => {
         const cleanRoomId = String(roomId).trim();
         try {
+            // 🔥 YAHAN BADLAAV KIYA HAI: Schema ke mutabik sahi keys map kar di hain
             const newMessage = new Message({
-                roomId: cleanRoomId,
-                sender,
+                chatRoomId: cleanRoomId,  // Pehle roomId likha tha
+                senderId: sender,         // Pehle sender likha tha
                 text: message
             });
             const savedMessage = await newMessage.save();
 
+            // Sockets par response emit karne ke liye payload structure
             const messageData = {
                 id: savedMessage._id,
+                _id: savedMessage._id,
                 text: savedMessage.text,
-                sender: savedMessage.sender,
+                chatRoomId: savedMessage.chatRoomId,
+                senderId: savedMessage.senderId,
                 createdAt: savedMessage.createdAt
             };
             
