@@ -19,7 +19,7 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// 1. CORS Configuration
+// 1. CORS Configuration for Express Routes
 app.use(cors({
   origin: 'http://localhost:5173', 
   credentials: true,              
@@ -30,16 +30,7 @@ app.use(cors({
 // 2. Body Parser
 app.use(express.json());
 
-// 3. Debug Logger Middleware 
-app.use((req, res, next) => {
-    console.log(`📡 [${new Date().toLocaleTimeString()}] ${req.method} ${req.url}`);
-    if (req.body && Object.keys(req.body).length > 0) {
-        console.log(`📦 Request Body:`, JSON.stringify(req.body));
-    }
-    next();
-});
-
-// 4. Bind API Routes
+// 3. Bind API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/chats', chatRoutes);
@@ -62,26 +53,38 @@ app.use((err, req, res, next) => {
 // Create Core HTTP Server
 const httpServer = createServer(app);
 
-// 🔥 5. Initialize PeerServer (Signaling Server for Video Calls)
+// 🛠️ 4. Initialize PeerServer (Signaling Server for Video/Voice Calls)
 const peerServer = ExpressPeerServer(httpServer, {
-    debug: true
+    debug: true,
+    allow_discovery: true
 });
-
-// PeerJS routing bind karna
 app.use('/peerjs', peerServer);
 
-// 6. Socket.io Integration
+// 🛠️ 5. Socket.io Integration with Strict CORS & Transports Fallbacks
 const io = new Server(httpServer, {
-    cors: { origin: "*", methods: ["GET", "POST"] }
+  cors: {
+    origin: "*"
+  }
 });
+
+// const io = new Server(httpServer, {
+//     cors: { 
+//         origin: "http://localhost:5173", // Dynamic client origin strictly specified
+//         methods: ["GET", "POST"],
+//         credentials: true
+//     },
+//     transports: ['polling', 'websocket'] // Auto fallback pipeline handshake support
+// });
 
 io.on('connection', (socket) => {
     console.log(`⚡ User connected: ${socket.id}`);
 
     socket.on('join-room', async ({ roomId, userName }) => {
+        const cleanRoomId = String(roomId).trim();
+        
         // Security check for private rooms
-        if (roomId.includes('_')) {
-            const [user1Id, user2Id] = roomId.split('_');
+        if (cleanRoomId.includes('_')) {
+            const [user1Id, user2Id] = cleanRoomId.split('_');
             try {
                 const user1 = await User.findById(user1Id);
                 const user2 = await User.findById(user2Id);
@@ -89,7 +92,7 @@ io.on('connection', (socket) => {
                 const isFriend = user1?.friends.some(f => f.toString() === user2Id) || user2?.friends.some(f => f.toString() === user1Id);
 
                 if (!isFriend) {
-                    console.log(`🚫 [Security Alert] Unauthorized access attempt by ${userName} in room ${roomId}`);
+                    console.log(`🚫 [Security Alert] Unauthorized access attempt by ${userName} in room ${cleanRoomId}`);
                     socket.emit('receive-message', {
                         id: 'sys-error',
                         text: '⚠️ Security Error: You can only chat with users who are on your friends list!',
@@ -103,13 +106,13 @@ io.on('connection', (socket) => {
             }
         }
 
-        socket.join(roomId);
-        console.log(`🔒 [Secure Chat Activated] ${userName} entered private room: ${roomId}`);
-        socket.to(roomId).emit('user-connected', { userName });
+        socket.join(cleanRoomId);
+        console.log(`🔒 [Secure Chat Activated] ${userName} entered private room: ${cleanRoomId}`);
+        socket.to(cleanRoomId).emit('user-connected', { userName });
 
         // Load Chat History
         try {
-            const chatHistory = await Message.find({ roomId }).sort({ createdAt: 1 });
+            const chatHistory = await Message.find({ roomId: cleanRoomId }).sort({ createdAt: 1 });
             socket.emit('chat-history', chatHistory);
         } catch (err) {
             console.error("History loading error:", err);
@@ -117,9 +120,10 @@ io.on('connection', (socket) => {
     });
 
     socket.on('send-message', async ({ roomId, message, sender }) => {
+        const cleanRoomId = String(roomId).trim();
         try {
             const newMessage = new Message({
-                roomId,
+                roomId: cleanRoomId,
                 sender,
                 text: message
             });
@@ -132,20 +136,52 @@ io.on('connection', (socket) => {
                 createdAt: savedMessage.createdAt
             };
             
-            io.to(roomId).emit('receive-message', messageData);
+            io.to(cleanRoomId).emit('receive-message', messageData);
         } catch (err) {
             console.error("❌ Error saving message:", err);
         }
     });
 
-    // 📞 WebRTC / PeerJS Call Signals via Socket.io
+    // ==================== 📞 VOICE CALLING SIGNALS ====================
+    
+    // 1. Triggered when caller dials a user
+    socket.on('initiate-voice-call', ({ roomId, callerName }) => {
+        const cleanRoomId = String(roomId).trim();
+        console.log(`📞 Call initiated in Room: ${cleanRoomId} by ${callerName}`);
+        
+        // Target explicit room audience context
+        socket.to(cleanRoomId).emit('incoming-voice-call', { 
+            roomId: cleanRoomId, 
+            callerName 
+        });
+    });
+
+    // 2. Triggered when receiver clicks "Accept"
+    socket.on('accept-voice-call', ({ roomId }) => {
+        const cleanRoomId = String(roomId).trim();
+        console.log(`✅ Call accepted in Room: ${cleanRoomId}`);
+        
+        socket.to(cleanRoomId).emit('voice-call-accepted');
+    });
+
+    // 3. Triggered on "Decline", "Cancel Call", or "Disconnect"
+    socket.on('end-voice-call', ({ roomId }) => {
+        const cleanRoomId = String(roomId).trim();
+        console.log(`🛑 Call terminated or declined in Room: ${cleanRoomId}`);
+        
+        socket.to(cleanRoomId).emit('voice-call-ended');
+    });
+
+    // ==================== 🎥 WEBRTC CORE SIGNALS ====================
     socket.on('ready-for-call', ({ roomId, userName }) => {
-        console.log(`📡 [PeerJS Signal] ${userName} is ready for call in room ${roomId}`);
-        socket.to(roomId).emit('peer-ready-to-receive', { targetPeerName: userName });
+        const cleanRoomId = String(roomId).trim();
+        console.log(`📡 [PeerJS Signal] ${userName} is ready for call in room ${cleanRoomId}`);
+        socket.to(cleanRoomId).emit('peer-ready-to-receive', { targetPeerName: userName });
     });
 
     socket.on('end-call-signal', ({ roomId }) => {
-        socket.to(roomId).emit('call-terminated-by-peer');
+        const cleanRoomId = String(roomId).trim();
+        socket.to(cleanRoomId).emit('call-terminated-by-peer');
     });
     
     socket.on('disconnecting', () => {

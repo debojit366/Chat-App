@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Bell, Search, MessageSquare, ArrowLeft, Phone, Video } from 'lucide-react';
+import { User, Bell, Search, MessageSquare, ArrowLeft, Phone, Video, X } from 'lucide-react';
 import API from '../api';
 import UserSearch from '../components/UserSearch';
 import ChatList from '../components/ChatList';
@@ -9,6 +9,7 @@ import UserProfile from '../components/UserProfile';
 import NotificationPanel from '../components/NotificationPanel';
 import ChatArea from '../components/ChatArea';
 import { io } from 'socket.io-client';
+import VoiceCallModal from '../components/VoiceCallModal';
 
 function DashboardPage() {
   const navigate = useNavigate();
@@ -30,11 +31,18 @@ function DashboardPage() {
   const [loadingChats, setLoadingChats] = useState(true);
   const [notifications, setNotifications] = useState([]);
 
+  // Voice Call States
+  const [voiceCallState, setVoiceCallState] = useState('idle'); // 'idle', 'dialing', 'incoming', 'connected'
+  const [callerName, setCallerName] = useState('');
+  const localStreamRef = useRef(null);
+  const remoteAudioRef = useRef(null);
+
   // Local Storage Data Parsing
   const loggedInUser = JSON.parse(localStorage.getItem('user'));
   const userName = loggedInUser?.username || 'Anonymous';
   const userId = loggedInUser?.id || loggedInUser?._id;
 
+  // ==================== DATA FETCHING PIPELINES ====================
   const fetchMyFriends = async () => {
     if (!userId) return;
     try {
@@ -77,27 +85,24 @@ function DashboardPage() {
     }
   };
 
-  // 🔥 CLEAN & SIMPLE CALL HANDLERS
-  const handleVoiceCall = () => {
-    alert("Voice call line setup active... 🔌");
-  };
-
-  const handleVideoCall = () => {
-    alert("Video channel connecting... 🎥");
-  };
-
-  // CORE SOCKET.IO INITIALIZATION Lifecycle
+  // ==================== CORE LIFECYCLES & SOCKET INITIALIZATION ====================
   useEffect(() => {
-    console.log("🔌 Connecting Frontend Socket.io client...");
-    const newSocket = io('http://localhost:5000');
-    setSocket(newSocket);
+  const socket = io("http://localhost:5000");
 
-    return () => {
-      console.log("🔌 Disconnecting socket connection cleanly.");
-      newSocket.close();
-    };
-  }, []);
+  socket.on("connect", () => {
+    console.log("CONNECTED:", socket.id);
+  });
 
+  socket.on("connect_error", (err) => {
+    console.log("ERROR:", err.message);
+  });
+
+  setSocket(socket);
+
+  return () => socket.disconnect();
+}, []);
+
+  // Room Dynamic Active Switch Lifecycle
   useEffect(() => {
     if (socket && activeChatId) {
       console.log(`🔊 Room dynamic active switch: ${activeChatId}`);
@@ -116,6 +121,96 @@ function DashboardPage() {
     return () => clearInterval(interval);
   }, [userId]);
 
+  // ==================== 📞 REAL-TIME VOICE CALL LISTENERS ====================
+  useEffect(() => {
+    if (!socket || !activeChatId) return;
+
+    console.log(`🎧 Syncing core voice call event hooks for Room: ${activeChatId}`);
+
+    // 1. Capture incoming ring line signal
+    socket.on('incoming-voice-call', ({ roomId, callerName: remoteCaller }) => {
+      console.log("🔥 Socket Event: Catching active incoming call from ->", remoteCaller);
+      setVoiceCallState('incoming');
+      setCallerName(remoteCaller);
+    });
+
+    // 2. Capture acceptance handshakes
+    socket.on('voice-call-accepted', () => {
+      console.log("🔥 Socket Event: Receiver accepted line handshake.");
+      setVoiceCallState('connected');
+    });
+
+    // 3. Clean line termination capture
+    socket.on('voice-call-ended', () => {
+      console.log("🔥 Socket Event: Line disconnected by peer context.");
+      cleanupVoiceTracks();
+    });
+
+    return () => {
+      socket.off('incoming-voice-call');
+      socket.off('voice-call-accepted');
+      socket.off('voice-call-ended');
+    };
+  }, [socket, activeChatId]);
+
+  // ==================== 🎙️ VOICE CALL CORE HANDLERS ====================
+  const handleVoiceCall = async () => {
+    if (!activeChatId || !socket) return;
+
+    try {
+      console.log("🎤 Requesting local mic stream capture processing...");
+      const stream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
+      localStreamRef.current = stream;
+
+      setVoiceCallState('dialing');
+      setCallerName(activeChatName || 'Friend');
+      
+      socket.emit('initiate-voice-call', { roomId: activeChatId, callerName: userName });
+      
+    } catch (err) {
+      console.error("❌ Mic hardware permission access denied:", err);
+      alert("Call lagane ke liye Microphone permission allow karein! 🎙️");
+    }
+  };
+
+  const acceptIncomingCall = async () => {
+    if (!activeChatId || !socket) return;
+    
+    try {
+      console.log("🎤 Requesting receiver local mic stream capture processing...");
+      const stream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
+      localStreamRef.current = stream;
+
+      setVoiceCallState('connected');
+      socket.emit('accept-voice-call', { roomId: activeChatId });
+      
+    } catch (err) {
+      console.error("❌ Mic access failed during pickup lifecycle:", err);
+      alert("Call receive karne ke liye Microphone permission allow karein.");
+    }
+  };
+
+  const declineOrEndCall = () => {
+    if (!activeChatId || !socket) return;
+    socket.emit('end-voice-call', { roomId: activeChatId });
+    cleanupVoiceTracks();
+  };
+
+  const cleanupVoiceTracks = () => {
+    setVoiceCallState('idle');
+    setCallerName('');
+    if (localStreamRef.current) {
+      console.log("🛑 Hard stop active local hardware stream tracks.");
+      localStreamRef.current.getTracks().forEach(track => track.stop());
+      localStreamRef.current = null;
+    }
+  };
+
+  const handleVideoCall = () => {
+    alert("Video channel connecting... 🎥");
+  };
+
+  // ==================== CHAT ACTIONS & NAVIGATION ROUTERS ====================
   const handleStartPrivateChat = async (friendId) => {
     if (!userId || !friendId) return;
     try {
@@ -148,6 +243,7 @@ function DashboardPage() {
     fetchMyFriends();
   };
 
+  // ==================== RENDER CORE JSX ====================
   return (
     <div className="min-h-screen bg-slate-900 flex text-slate-100 overflow-hidden h-screen w-full relative">
       
@@ -330,6 +426,16 @@ function DashboardPage() {
         )}
       </main>
 
+      {/* 📥 1. AWAAZ PLAY KARNE KE LIYE REFS BINDING ELEMENT */}
+      <audio ref={remoteAudioRef} autoPlay playsInline />
+
+      {/* 📥 2. APNA VOICE CALL POP-UP MODAL COMPONENT */}
+      <VoiceCallModal 
+        callState={voiceCallState}
+        callerName={callerName}
+        onAccept={acceptIncomingCall}
+        onDecline={declineOrEndCall}
+      />
     </div>
   );
 }
