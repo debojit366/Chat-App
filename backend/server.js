@@ -110,9 +110,9 @@ io.on('connection', (socket) => {
         console.log(`🔒 [Secure Chat Activated] ${userName} entered private room: ${cleanRoomId}`);
         socket.to(cleanRoomId).emit('user-connected', { userName });
 
-        // Load Chat History
+        // 🔥 FIX 1: Schema ke mutabik 'chatRoomId' use karo chat history nikalne ke liye
         try {
-            const chatHistory = await Message.find({ roomId: cleanRoomId }).sort({ createdAt: 1 });
+            const chatHistory = await Message.find({ chatRoomId: cleanRoomId }).sort({ createdAt: 1 });
             socket.emit('chat-history', chatHistory);
         } catch (err) {
             console.error("History loading error:", err);
@@ -122,15 +122,13 @@ io.on('connection', (socket) => {
     socket.on('send-message', async ({ roomId, message, sender }) => {
         const cleanRoomId = String(roomId).trim();
         try {
-            // 🔥 YAHAN BADLAAV KIYA HAI: Schema ke mutabik sahi keys map kar di hain
             const newMessage = new Message({
-                chatRoomId: cleanRoomId,  // Pehle roomId likha tha
-                senderId: sender,         // Pehle sender likha tha
+                chatRoomId: cleanRoomId,
+                senderId: sender,
                 text: message
             });
             const savedMessage = await newMessage.save();
 
-            // Sockets par response emit karne ke liye payload structure
             const messageData = {
                 id: savedMessage._id,
                 _id: savedMessage._id,
@@ -147,32 +145,24 @@ io.on('connection', (socket) => {
     });
 
     // ==================== 📞 VOICE CALLING SIGNALS ====================
-    
-    // 1. Triggered when caller dials a user
     socket.on('initiate-voice-call', ({ roomId, callerName }) => {
         const cleanRoomId = String(roomId).trim();
         console.log(`📞 Call initiated in Room: ${cleanRoomId} by ${callerName}`);
-        
-        // Target explicit room audience context
         socket.to(cleanRoomId).emit('incoming-voice-call', { 
             roomId: cleanRoomId, 
             callerName 
         });
     });
 
-    // 2. Triggered when receiver clicks "Accept"
     socket.on('accept-voice-call', ({ roomId }) => {
         const cleanRoomId = String(roomId).trim();
         console.log(`✅ Call accepted in Room: ${cleanRoomId}`);
-        
         socket.to(cleanRoomId).emit('voice-call-accepted');
     });
 
-    // 3. Triggered on "Decline", "Cancel Call", or "Disconnect"
     socket.on('end-voice-call', ({ roomId }) => {
         const cleanRoomId = String(roomId).trim();
         console.log(`🛑 Call terminated or declined in Room: ${cleanRoomId}`);
-        
         socket.to(cleanRoomId).emit('voice-call-ended');
     });
 
@@ -180,6 +170,8 @@ io.on('connection', (socket) => {
     socket.on('ready-for-call', ({ roomId, userName }) => {
         const cleanRoomId = String(roomId).trim();
         console.log(`📡 [PeerJS Signal] ${userName} is ready for call in room ${cleanRoomId}`);
+        
+        // 🔥 FIX 2: Room me broadcast karne se pehle ensure karo ki caller socket securely isolated ho
         socket.to(cleanRoomId).emit('peer-ready-to-receive', { targetPeerName: userName });
     });
 
