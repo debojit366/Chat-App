@@ -19,10 +19,28 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+
+
+const allowedOrigins = [
+  'http://localhost:5173', // Tumhara local frontend
+  'https://chat-8r1tuwu1o-debojitdas366-gmailcoms-projects.vercel.app', // Tumhara Vercel production URL
+];
+
+
+
 // 1. CORS Configuration for Express Routes
 app.use(cors({
-  origin: '*', 
-//   credentials: true,              
+  origin: function (origin, callback) {
+    // allow requests with no origin (like mobile apps, curl, or postman)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1 || origin.startsWith('https://chat-')) {
+      return callback(null, true); // Agar origin list mein hai ya Vercel ka sub-domain hai toh allow kar do
+    } else {
+      return callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,               
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
