@@ -13,7 +13,7 @@ function LoginPage() {
     setError('');
 
     try {
-      const response = await fetch('https://chat-app-teyt.onrender.com/api/auth/login', {
+      const response = await fetch('https://chat-app-ljy3.onrender.com/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
