@@ -4,6 +4,8 @@ import DashboardPage from './pages/DashboardPage'; // <-- New Dashboard Import
 import ChatPage from './pages/ChatPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+
 
 const ProtectedRoute = ({ children }) => {
   const token = localStorage.getItem('token');
@@ -24,7 +26,7 @@ function App() {
             <DashboardPage /> {/* <-- Direct entry post login */}
           </ProtectedRoute>
         } />
-
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         {/* Real-time Streaming Room Area */}
         <Route path="/chat/:roomId" element={
           <ProtectedRoute>

@@ -15,7 +15,6 @@ function LoginPage() {
 
     try {
       const response = await API.post('/auth/login', { email, password });
-
       const data = response.data;
 
       localStorage.setItem('token', data.token);
@@ -69,7 +68,18 @@ function LoginPage() {
               onChange={(e) => setPassword(e.target.value)} 
               className="w-full px-4 py-2.5 bg-slate-700 border border-slate-600 rounded-xl text-white focus:outline-none focus:border-blue-500 transition" 
             />
+            
+            {/* 🔥 FORGOT PASSWORD LINK ADDED HERE */}
+            <div className="flex justify-end mt-1.5">
+              <Link 
+                to="/forgot-password" 
+                className="text-xs text-blue-400 hover:underline hover:text-blue-300 transition"
+              >
+                Forgot Password?
+              </Link>
+            </div>
           </div>
+
           <button 
             type="submit" 
             className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition duration-200 shadow-lg"
