@@ -19,8 +19,8 @@ const generateToken = (userId) => {
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-        user: process.env.EMAIL_USER, // 🚨 Apni Gmail ID dalo
-        pass: process.env.EMAIL_PASS    // 🚨 Google se mila 16-digit App Password yahan dalo (bina spaces ke)
+        user: process.env.EMAIL_USER, // Enter your Gmail ID
+        pass: process.env.EMAIL_PASS    // Enter the 16-digit App Password from Google (without spaces)
     }
 });
 
@@ -93,7 +93,7 @@ router.post('/register/verify', async (req, res) => {
             return res.status(400).json({ message: "❌ Invalid or Expired OTP. Please request a new one." });
         }
 
-        // 🔥 DOUBLE CHECK IN STEP 2: Ki isi beech kisi aur ne ye username ya email toh nahi le liya
+        // DOUBLE CHECK IN STEP 2: Verify if someone else claimed this username or email in the interim
         const existingUsername = await User.findOne({ username: username.trim() });
         if (existingUsername) {
             return res.status(400).json({ message: "⚠️ Username was just taken! Please go back and change it." });
@@ -221,7 +221,7 @@ router.post('/forgot-password', async (req, res) => {
 router.post('/reset-password', async (req, res) => {
     const { email, otp, newPassword } = req.body;
     try {
-        // 🔥 STEP 1: Naye collection me live record check karo (MongoDB automation expiry handle karega)
+        // STEP 1: Check for a live record in the OTP collection (MongoDB TTL handles expiry)
         const otpRecord = await OtpVerification.findOne({
             email: email.toLowerCase(),
             otp: otp,
@@ -232,17 +232,17 @@ router.post('/reset-password', async (req, res) => {
             return res.status(400).json({ message: "❌ Invalid or Expired OTP. Please request a new one." });
         }
 
-        // 🔥 STEP 2: User dhundo aur uska password update karo
+        // STEP 2: Locate user and update their password
         const user = await User.findOne({ email: email.toLowerCase() });
         if (!user) {
             return res.status(404).json({ message: "User no longer exists." });
         }
 
-        // Agar bcrypt pre-save hook model me lagaya hai toh direct assign karo, nahi toh yahan hash kar lena
+        // Assign directly if bcrypt pre-save hook is active in the model, otherwise hash manually
         user.password = newPassword; 
         await user.save();
 
-        // 🔥 STEP 3: Work complete! Ab is OTP record ko manually database se uda do taaki reuse na ho sake
+        // STEP 3: Cleanup: Manually delete the OTP record from the database to prevent reuse
         await OtpVerification.deleteOne({ _id: otpRecord._id });
 
         res.status(200).json({ message: "Password updated successfully! 🎉 Proceed to Login." });

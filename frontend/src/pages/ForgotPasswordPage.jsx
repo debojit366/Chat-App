@@ -44,7 +44,7 @@ function ForgotPasswordPage() {
       const response = await API.post('/auth/reset-password', { email, otp, newPassword });
       setMessage(response.data?.message || 'Password updated successfully! 🎉');
       
-      // Password change hone ke 2.5 second baad dynamic route push to login
+      // Wait 2.5 seconds after a successful password update before redirecting to login
       setTimeout(() => {
         navigate('/login');
       }, 2500);

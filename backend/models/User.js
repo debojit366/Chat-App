@@ -5,7 +5,7 @@ const userSchema = new mongoose.Schema({
     username: {
     type: String,
     required: true,
-    unique: true, // 🔥 Database level par unique constraint lag gaya
+    unique: true, // Unique constraint applied at the database level
     trim: true,
     minlength: 3
   },
@@ -15,7 +15,7 @@ const userSchema = new mongoose.Schema({
     unique: true,
     lowercase: true,
     trim: true,
-    // 🔥 Email validation regex pattern
+    // Email validation regex pattern
     match: [/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/, 'Please fill a valid email address']
   },
     password: { 
@@ -29,6 +29,10 @@ const userSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User' 
     }],
+    profilePic: {
+    type: String,
+    default: "",
+    },
     joinedRooms: [{
         type: String 
     }]

@@ -1,7 +1,12 @@
 import express from 'express';
 import User from '../models/User.js';
 import FriendRequest from '../models/FriendRequest.js';
-
+import { cloudinary } from '../config/cloudinary.js';
+import { upload } from '../middleware/multer.js'; // Import upload middleware
+import DatauriParser from 'datauri/parser.js';
+import path from 'path';
+import fs from 'fs'; 
+const parser = new DatauriParser();
 const router = express.Router();
 
 // 1. GLOBAL SEARCH USERS: Search for anyone in the entire database
@@ -60,7 +65,6 @@ router.get('/friends/:userId', async (req, res) => {
     }
 });
 
-
 router.get('/notifications/:userId', async (req, res) => {
     try {
         const { userId } = req.params;
@@ -73,8 +77,6 @@ router.get('/notifications/:userId', async (req, res) => {
         res.status(500).json({ message: "Failed to load notifications" });
     }
 });
-
-
 
 router.post('/respond-request', async (req, res) => {
     try {
@@ -98,6 +100,34 @@ router.post('/respond-request', async (req, res) => {
     }
 });
 
+// 🚀 PROFILE PICTURE UPLOAD ROUTE WITH FIXED PARSING LOGIC
+router.post('/upload-profile-pic/:userId', upload.single('image'), async (req, res) => {
+    try {
+        if (!req.file) return res.status(400).json({ message: "No file uploaded!" });
 
+        const filePath = req.file.path; 
+
+        const uploadResponse = await cloudinary.uploader.upload(req.file.path, {
+    folder: 'chat_app_profiles',
+    upload_preset: 'first_time_using_cloudinary',
+    unsigned: true,
+        resource_type: 'image',
+});
+
+        // IMPORTANT: Delete the local file after uploading to Cloudinary to save server space
+        fs.unlinkSync(filePath); 
+
+        const updatedUser = await User.findByIdAndUpdate(
+            req.params.userId,
+            { profilePic: uploadResponse.secure_url },
+            { new: true }
+        );
+
+        res.status(200).json({ profilePic: updatedUser.profilePic });
+    } catch (err) {
+        console.error("❌ Backend Error:", err);
+        res.status(500).json({ message: "Internal server error" });
+    }
+});
 
 export default router;

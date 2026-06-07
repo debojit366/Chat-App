@@ -1,13 +1,56 @@
-import React from 'react';
-import { LogOut, User, Shield, X, Lock, MessageSquare, Globe, ChevronRight } from 'lucide-react';
-
+import React, { useState } from 'react';
+import { LogOut, User, Shield, X, Lock, MessageSquare, Globe, ChevronRight, Camera } from 'lucide-react';
+import API from '../api';
 function UserProfile({ onClose }) {
   // Fetch logged-in user details from local storage
   const loggedInUser = JSON.parse(localStorage.getItem('user'));
+  
+  // State to update the UI immediately upon image upload without a page refresh
+  const [profilePic, setProfilePic] = useState(loggedInUser?.profilePic || '');
+  const [uploading, setUploading] = useState(false);
+
   const userName = loggedInUser?.username || 'Anonymous';
   const userEmail = loggedInUser?.email || 'No email provided';
   const userId = loggedInUser?.id || loggedInUser?._id;
   const userRole = loggedInUser?.role || 'Student / Developer';
+
+  // PROFILE PICTURE UPLOAD LOGIC
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Use FormData for file transfer instead of JSON
+    const formData = new FormData();
+    formData.append('image', file);
+    // formData.append("upload_preset","first_time_using_cloudinary")
+    // formData.append("cloud_name","dyozxlddu")
+    try {
+      setUploading(true);
+
+      // Hit the backend API route
+      const response = await API.post(`/users/upload-profile-pic/${userId}`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      if (response.status === 200) {
+        const newPicUrl = response.data.profilePic;
+        
+        // 1. Update local state for immediate UI feedback
+        setProfilePic(newPicUrl);
+        
+        // 2. Update user details in LocalStorage to persist changes on refresh
+        const updatedUserData = { ...loggedInUser, profilePic: newPicUrl };
+        localStorage.setItem('user', JSON.stringify(updatedUserData));
+        
+        alert("Profile picture updated successfully! 😎");
+      }
+    } catch (err) {
+      console.error("❌ Error uploading profile picture:", err);
+      alert("Failed to upload image. Please try again.");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.clear();
@@ -33,11 +76,46 @@ function UserProfile({ onClose }) {
 
       {/* Profile Details Area */}
       <div className="flex flex-col items-center text-center mb-6">
-        <div className="w-20 h-20 bg-gradient-to-tr from-blue-600 to-indigo-600 text-white rounded-2xl flex items-center justify-center font-bold text-2xl shadow-xl border-2 border-slate-700 mb-4">
-          {userName.charAt(0).toUpperCase()}
-        </div>
         
-        <h2 className="text-base font-bold text-white tracking-wide">{userName}</h2>
+        {/* DYNAMIC PROFILE PICTURE AVATAR WITH HOVER CHANGE BUTTON */}
+        <div className="relative w-20 h-20 rounded-2xl overflow-hidden shadow-xl border-2 border-slate-700 mb-2 group">
+          {profilePic ? (
+            <img 
+              src={profilePic} 
+              alt="Profile" 
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-2xl">
+              {userName.charAt(0).toUpperCase()}
+            </div>
+          )}
+
+          {/* Camera Hover Overlay Overlay Click Trigger */}
+          <label 
+            htmlFor="profile-pic-input" 
+            className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition duration-200"
+          >
+            <Camera size={20} className="text-white" />
+          </label>
+          
+          {/* Hidden File Input */}
+          <input 
+            type="file" 
+            id="profile-pic-input" 
+            accept="image/*" 
+            className="hidden" 
+            onChange={handleFileChange}
+            disabled={uploading}
+          />
+        </div>
+
+        {/* Uploading indicator text */}
+        {uploading && (
+          <p className="text-[10px] text-blue-400 animate-pulse mb-2">Uploading image... ⏳</p>
+        )}
+        
+        <h2 className="text-base font-bold text-white tracking-wide mt-2">{userName}</h2>
         <p className="text-xs text-slate-400 mt-1">{userEmail}</p>
 
         <div className="w-full mt-6 bg-slate-900/50 border border-slate-700/50 p-3 rounded-xl text-left space-y-2">

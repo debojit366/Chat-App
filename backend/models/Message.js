@@ -6,7 +6,6 @@ const MessageSchema = new mongoose.Schema({
     text: { type: String, required: true }
 }, { timestamps: true });
 
-// ❌ Agar wahan aisa likha hai: export { Message } ya export const Message = ...
-//  Toh use hatao aur niche ye default export add karo:
+// Ensure to use default export instead of named exports for this model
 const Message = mongoose.model('Message', MessageSchema);
 export default Message;

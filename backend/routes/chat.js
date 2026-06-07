@@ -48,16 +48,16 @@ router.post('/private-room', async (req, res) => {
 
 
 // ====================================================================
-// 🔥 NYA CODE: IN DONO ENDPOINTS KO ABHI ADD KARO TAKI 404 ERROR KHATAM HO JAYE
+// NEW CODE: ADD THESE TWO ENDPOINTS TO RESOLVE 404 ERRORS
 // ====================================================================
 
-// 3. GET ALL MESSAGES FOR A SPECIFIC ROOM (Frontend isi ko dhoondh raha hai)
+// 3. GET ALL MESSAGES FOR A SPECIFIC ROOM (Frontend is looking for this)
 // Path will map to: /api/chats/messages/:chatRoomId
 router.get('/messages/:chatRoomId', async (req, res) => {
     try {
         const { chatRoomId } = req.params;
 
-        // Database se is room ke saare messages ascending order (time order) me nikaalo
+        // Fetch all messages for this room in ascending chronological order from the database
         const messages = await Message.find({ chatRoomId })
             .sort({ createdAt: 1 });
 
@@ -75,10 +75,10 @@ router.post('/send-message', async (req, res) => {
         const { chatRoomId, senderId, text } = req.body;
 
         if (!chatRoomId || !senderId || !text) {
-            return res.status(400).json({ message: "Bhai, fields missing hain!" });
+            return res.status(400).json({ message: "Fields are missing!" });
         }
 
-        // Naye message ko document format me save karo
+        // Save the new message in document format
         const newMessage = new Message({
             chatRoomId,
             senderId,
@@ -86,7 +86,7 @@ router.post('/send-message', async (req, res) => {
         });
         const savedMessage = await newMessage.save();
 
-        // Room model ka status update karo takki dynamic "Rooms & Chats" tab top par scroll ho sake
+        // Update the Room model status so the dynamic "Rooms & Chats" tab can scroll to the top
         await Room.findByIdAndUpdate(chatRoomId, {
             lastMessage: text,
             lastMessageTime: Date.now()
