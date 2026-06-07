@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { UserPlus, Mail, Lock, User, ShieldCheck, RotateCcw } from 'lucide-react';
 import { useForm } from 'react-hook-form';
+import API from '../api';
+
 
 function RegisterPage() {
   const [serverError, setServerError] = useState('');
@@ -34,77 +36,68 @@ function RegisterPage() {
 
   // 🔥 ACTION FOR STEP 1: Trigger OTP Request
   const handleRequestOtp = async (data) => {
-    setServerError('');
-    setServerSuccess('');
-    try {
-      const response = await fetch('http://localhost:5000/api/auth/register/request', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: data.username, email: data.email }),
-      });
+  setServerError('');
+  setServerSuccess('');
+  
+  try {
+    const response = await API.post('/api/auth/register/request', {
+      username: data.username, 
+      email: data.email 
+    });
 
-      const resData = await response.json();
-      if (!response.ok) throw new Error(resData.message || 'Failed to send verification code');
-
-      setServerSuccess('📩 Verification OTP sent to your email!');
-      setStep(2); 
-      setResendTimer(30); // 🔥 30 seconds ka cooldown lagao
-    } catch (err) {
-      setServerError(err.message);
-    }
-  };
-
-  // 🔥 NEW ACTION: Resend OTP Handler
-  const handleResendOtp = async () => {
-    setServerError('');
-    setServerSuccess('');
+    setServerSuccess('📩 Verification OTP sent to your email!');
+    setStep(2); 
+    setResendTimer(30);
     
-    // Form se current fields ki value uthao bina submit trigger kiye
-    const username = getValues('username');
-    const email = getValues('email');
+  } catch (err) {
+    const errorMessage = err.response?.data?.message || 'Failed to send verification code';
+    setServerError(errorMessage);
+  }
+};
 
-    try {
-      const response = await fetch('http://localhost:5000/api/auth/register/request', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, email }),
-      });
+  const handleResendOtp = async () => {
+  setServerError('');
+  setServerSuccess('');
+  
+  const username = getValues('username');
+  const email = getValues('email');
 
-      const resData = await response.json();
-      if (!response.ok) throw new Error(resData.message || 'Failed to resend verification code');
+  try {
+    await API.post('/api/auth/register/request', { 
+      username, 
+      email 
+    });
 
-      setServerSuccess('🔄 A new OTP has been dispatched to your inbox!');
-      setResendTimer(30); // Reset timer back to 30s
-    } catch (err) {
-      setServerError(err.message);
-    }
-  };
+    setServerSuccess('🔄 A new OTP has been dispatched to your inbox!');
+    setResendTimer(30); // Cooldown reset
+  } catch (err) {
+    const errorMessage = err.response?.data?.message || 'Failed to resend verification code';
+    setServerError(errorMessage);
+  }
+};
 
   // 🔥 ACTION FOR STEP 2: Final Accounts Extraction
   const handleVerifyAndRegister = async (data) => {
-    setServerError('');
-    try {
-      const response = await fetch('http://localhost:5000/api/auth/register/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          username: data.username, 
-          email: data.email, 
-          password: data.password,
-          otp: data.otp 
-        }),
-      });
+  setServerError('');
+  try {
+    const response = await API.post('/api/auth/register/verify', {
+      username: data.username,
+      email: data.email,
+      password: data.password,
+      otp: data.otp,
+    });
 
-      const resData = await response.json();
-      if (!response.ok) throw new Error(resData.message || 'Verification failed');
+    const { token, user } = response.data;
 
-      localStorage.setItem('token', resData.token);
-      localStorage.setItem('user', JSON.stringify(resData.user));
-      navigate('/');
-    } catch (err) {
-      setServerError(err.message);
-    }
-  };
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(user));
+    
+    navigate('/');
+  } catch (err) {
+    const errorMessage = err.response?.data?.message || 'Verification failed';
+    setServerError(errorMessage);
+  }
+};
 
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">

@@ -47,7 +47,7 @@ function DashboardPage() {
     if (!userId) return;
     try {
       setLoadingFriends(true);
-      const response = await API.get(`/users/friends/${userId}`);
+      const response = await API.get(`/api/users/friends/${userId}`);
       setFriends(response.data);
     } catch (err) { console.error("❌ Friends sync error:", err); }
     finally { setLoadingFriends(false); }
@@ -57,7 +57,7 @@ function DashboardPage() {
     if (!userId) return;
     try {
       setLoadingChats(true);
-      const response = await API.get(`/chats/my-rooms/${userId}`);
+      const response = await API.get(`/api/chats/my-rooms/${userId}`);
       const formattedRooms = response.data.map(room => ({
         id: room._id, name: room.name, lastMessage: room.lastMessage,
         time: room.lastMessageTime ? new Date(room.lastMessageTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'New'
@@ -70,14 +70,14 @@ function DashboardPage() {
   const fetchMyNotifications = async () => {
     if (!userId) return;
     try {
-      const response = await API.get(`/users/notifications/${userId}`);
+      const response = await API.get(`/api/users/notifications/${userId}`);
       setNotifications(response.data);
     } catch (err) { console.error("❌ Notifications load error:", err); }
   };
 
   // ==================== SYSTEMS INITIALIZATION ====================
   useEffect(() => {
-    const socketInstance = io("http://localhost:5000");
+    const socketInstance = io(import.meta.env.VITE_API_URL);
     setSocket(socketInstance);
     return () => socketInstance.disconnect();
   }, []);
@@ -161,7 +161,7 @@ function DashboardPage() {
     if (!userId || !friendId) return;
     try {
       const targetFriend = friends.find(f => (f._id || f.id) === friendId);
-      const response = await API.post('/chats/private-room', {
+      const response = await API.post('/api/chats/private-room', {
         userId, friendId, friendName: targetFriend ? targetFriend.username : 'Direct Message'
       });
       if (response.status === 200) {

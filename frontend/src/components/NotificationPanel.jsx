@@ -6,14 +6,14 @@ function NotificationPanel({ notifications, onActionTaken, onClose }) {
 
   const handleResponse = async (requestId, actionStatus) => {
     try {
-      const response = await API.post('/users/respond-request', {
+      const response = await API.post('/api/users/respond-request', {
         requestId,
-        status: actionStatus // 'accepted' ya 'rejected'
+        status: actionStatus // 'accepted' or 'rejected'
       });
 
       if (response.status === 200) {
         alert(`Request ${actionStatus === 'accepted' ? 'Accept ✅' : 'Reject ❌'} ho gayi!`);
-        onActionTaken(); // Parent sidebar data refresh refresh karega
+        onActionTaken(); // Parent sidebar data refresh 
       }
     } catch (err) {
       console.error("❌ Action respond error:", err);

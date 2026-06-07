@@ -28,7 +28,7 @@ function UserProfile({ onClose }) {
       setUploading(true);
 
       // Hit the backend API route
-      const response = await API.post(`/users/upload-profile-pic/${userId}`, formData, {
+      const response = await API.post(`/api/users/upload-profile-pic/${userId}`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
@@ -42,7 +42,7 @@ function UserProfile({ onClose }) {
         const updatedUserData = { ...loggedInUser, profilePic: newPicUrl };
         localStorage.setItem('user', JSON.stringify(updatedUserData));
         
-        alert("Profile picture updated successfully! 😎");
+        alert("Profile picture updated successfully!");
       }
     } catch (err) {
       console.error("❌ Error uploading profile picture:", err);

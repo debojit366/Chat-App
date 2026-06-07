@@ -23,7 +23,7 @@ function ForgotPasswordPage() {
     setLoading(true);
 
     try {
-      const response = await API.post('/auth/forgot-password', { email });
+      const response = await API.post('/api/auth/forgot-password', { email });
       setMessage(response.data?.message || 'Verification OTP sent to your email! 📩');
       setStep(2); // Form layout switch manually to step 2 pipeline
     } catch (err) {
@@ -41,7 +41,7 @@ function ForgotPasswordPage() {
     setLoading(true);
 
     try {
-      const response = await API.post('/auth/reset-password', { email, otp, newPassword });
+      const response = await API.post('/api/auth/reset-password', { email, otp, newPassword });
       setMessage(response.data?.message || 'Password updated successfully! 🎉');
       
       // Wait 2.5 seconds after a successful password update before redirecting to login

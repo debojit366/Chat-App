@@ -2,7 +2,6 @@ import React from 'react';
 import { Phone, X } from 'lucide-react';
 
 function VoiceCallModal({ callState, callerName, onAccept, onDecline }) {
-  // Agar call idle hai toh modal render hi nahi hoga
   if (callState === 'idle') return null;
 
   return (

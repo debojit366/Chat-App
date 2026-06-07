@@ -1,16 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, Smile } from 'lucide-react'; 
 import API from '../api';
-import EmojiPicker from 'emoji-picker-react'; // 🔥 Emoji Picker package import kiya
+import EmojiPicker from 'emoji-picker-react';
 
 function ChatArea({ roomId, roomName, currentUserId, socket }) {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false); // 🔥 Picker open/close ki state
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   const messagesEndRef = useRef(null);
-  const pickerRef = useRef(null); // 🔥 Picker container ke liye ref (bahar click detect karne ko)
+  const pickerRef = useRef(null); 
 
   // 📜 Automatically scroll to the bottom when new message arrives
   const scrollToBottom = () => {
@@ -21,7 +21,6 @@ function ChatArea({ roomId, roomName, currentUserId, socket }) {
     scrollToBottom();
   }, [messages]);
 
-  // 🔥 UX FIX: Jab user emoji picker ke bahar click kare, toh picker automatic close ho jaye
   useEffect(() => {
     const handleOutsideClick = (event) => {
       if (pickerRef.current && !pickerRef.current.contains(event.target)) {
@@ -37,7 +36,7 @@ function ChatArea({ roomId, roomName, currentUserId, socket }) {
     if (!roomId) return;
     try {
       setLoading(true);
-      const response = await API.get(`/chats/messages/${roomId}`);
+      const response = await API.get(`/api/chats/messages/${roomId}`);
       setMessages(response.data);
     } catch (err) {
       console.error("❌ Error loading messages history:", err);
@@ -51,7 +50,6 @@ function ChatArea({ roomId, roomName, currentUserId, socket }) {
   // 1. Initial history fetch jab bhi roomId badle
   fetchMessages();
 
-  // Agar socket connected nahi hai, toh aage ke listeners mat lagao
   if (!socket || !roomId) return;
 
   console.log(`🎧 Syncing live socket subscription channel for Room: ${roomId}`);
@@ -115,7 +113,7 @@ function ChatArea({ roomId, roomName, currentUserId, socket }) {
       }
       
       // 2. Persist database log tracking via API pipeline asynchronously
-      const response = await API.post('/chats/send-message', messagePayload);
+      const response = await API.post('/api/chats/send-message', messagePayload);
       
       // Agar backend socket pipeline khud handle nahi kar raha local screen append context,
       // toh update safely inside local state flow.

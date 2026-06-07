@@ -33,7 +33,7 @@ function UserSearch({ currentUserId, myFriends, onFriendAdded, onStartChat }) {
 
   const handleAddFriend = async (friendId) => {
   try {
-    const response = await API.post('/users/send-request', {
+    const response = await API.post('/api/users/send-request', {
       senderId: currentUserId,
       receiverId: friendId
     });

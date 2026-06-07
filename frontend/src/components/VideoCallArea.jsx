@@ -16,10 +16,8 @@ function VideoCallArea({ roomId, currentUserId, socket, onCallClose }) {
   const currentCallInstance = useRef(null);
 
   // ─────────────────────────────────────────────────────────────────────────
-  // 🔥 Optimization 1: Strict Dynamic Binding Hook
+  //  Optimization 1: Strict Dynamic Binding Hook
   // ─────────────────────────────────────────────────────────────────────────
-  // Hamesha use strict Ref-binding when the stream state changes, don't rely only on the main useEffect.
-  // This ensures dynamic elements always bind safely.
   useEffect(() => {
     if (remoteStream && remoteVideoRef.current) {
       console.log("🟢 Strictly binding dynamic remote media track object...");

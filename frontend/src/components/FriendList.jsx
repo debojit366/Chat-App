@@ -3,13 +3,13 @@ import { MessageSquare, User } from 'lucide-react';
 
 function FriendList({ friends, searchQuery, loading, onStartChat }) {
   if (loading) {
-    return <div className="text-center text-xs text-slate-400 py-8 animate-pulse">Dosto ki list aa rahi hai... ⏳</div>;
+    return <div className="text-center text-xs text-slate-400 py-8 animate-pulse">Loading friend list... ⏳</div>;
   }
 
   if (friends.length === 0) {
     return (
       <div className="text-center text-xs text-slate-500 py-8 bg-slate-900/20 rounded-xl border border-dashed border-slate-800">
-        Bhai, koi dost nahi mila! 🔍
+        No friends found! 🔍
       </div>
     );
   }
@@ -21,7 +21,6 @@ function FriendList({ friends, searchQuery, loading, onStartChat }) {
         return (
           <div
             key={id}
-            /* 🔥 FIX: Yahan click karte hi chat function call hoga */
             onClick={() => onStartChat(id)}
             className="p-2.5 bg-slate-900/40 border border-slate-800 hover:border-blue-500/40 hover:bg-slate-700/30 rounded-xl flex items-center justify-between cursor-pointer transition group"
           >
