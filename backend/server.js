@@ -22,8 +22,8 @@ const PORT = process.env.PORT || 5000;
 
 
 const allowedOrigins = [
-  'http://localhost:5173', // Tumhara local frontend
-  'https://chat-8r1tuwu1o-debojitdas366-gmailcoms-projects.vercel.app', // Tumhara Vercel production URL
+  'http://localhost:5173', // local frontend
+  'https://chat-8r1tuwu1o-debojitdas366-gmailcoms-projects.vercel.app', //Vercel production URL
 ];
 
 
@@ -35,7 +35,7 @@ app.use(cors({
     if (!origin) return callback(null, true);
     
     if (allowedOrigins.indexOf(origin) !== -1 || origin.startsWith('https://chat-')) {
-      return callback(null, true); // Agar origin list mein hai ya Vercel ka sub-domain hai toh allow kar do
+      return callback(null, true); 
     } else {
       return callback(new Error('Not allowed by CORS'));
     }
@@ -128,7 +128,7 @@ io.on('connection', (socket) => {
         console.log(`🔒 [Secure Chat Activated] ${userName} entered private room: ${cleanRoomId}`);
         socket.to(cleanRoomId).emit('user-connected', { userName });
 
-        // 🔥 FIX 1: Schema ke mutabik 'chatRoomId' use karo chat history nikalne ke liye
+        
         try {
             const chatHistory = await Message.find({ chatRoomId: cleanRoomId }).sort({ createdAt: 1 });
             socket.emit('chat-history', chatHistory);
@@ -137,28 +137,24 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('send-message', async ({ roomId, message, sender }) => {
+    socket.on('send-message', ({ roomId, message, sender }) => {
         const cleanRoomId = String(roomId).trim();
         try {
-            const newMessage = new Message({
+            
+            const messageData = {
+                _id: new mongoose.Types.ObjectId(),
+                text: message,
                 chatRoomId: cleanRoomId,
                 senderId: sender,
-                text: message
-            });
-            const savedMessage = await newMessage.save();
-
-            const messageData = {
-                id: savedMessage._id,
-                _id: savedMessage._id,
-                text: savedMessage.text,
-                chatRoomId: savedMessage.chatRoomId,
-                senderId: savedMessage.senderId,
-                createdAt: savedMessage.createdAt
+                createdAt: new Date()
             };
             
-            io.to(cleanRoomId).emit('receive-message', messageData);
+            
+            socket.to(cleanRoomId).emit('receive-message', messageData);
+            
+            console.log(`📡 Message broadcasted to room ${cleanRoomId} via socket (Skipped DB Save).`);
         } catch (err) {
-            console.error("❌ Error saving message:", err);
+            console.error("❌ Error broadcasting socket message:", err);
         }
     });
 
@@ -189,7 +185,6 @@ io.on('connection', (socket) => {
         const cleanRoomId = String(roomId).trim();
         console.log(`📡 [PeerJS Signal] ${userName} is ready for call in room ${cleanRoomId}`);
         
-        // 🔥 FIX 2: Room me broadcast karne se pehle ensure karo ki caller socket securely isolated ho
         socket.to(cleanRoomId).emit('peer-ready-to-receive', { targetPeerName: userName });
     });
 

@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, Smile } from 'lucide-react'; 
 import API from '../api';
+import EmojiPicker from 'emoji-picker-react'; // 🔥 Emoji Picker package import kiya
 
 function ChatArea({ roomId, roomName, currentUserId, socket }) {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false); // 🔥 Picker open/close ki state
 
   const messagesEndRef = useRef(null);
+  const pickerRef = useRef(null); // 🔥 Picker container ke liye ref (bahar click detect karne ko)
 
   // 📜 Automatically scroll to the bottom when new message arrives
   const scrollToBottom = () => {
@@ -17,6 +20,17 @@ function ChatArea({ roomId, roomName, currentUserId, socket }) {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // 🔥 UX FIX: Jab user emoji picker ke bahar click kare, toh picker automatic close ho jaye
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (pickerRef.current && !pickerRef.current.contains(event.target)) {
+        setShowEmojiPicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
 
   // --- Initial Chat History Loader ---
   const fetchMessages = async () => {
@@ -69,6 +83,11 @@ function ChatArea({ roomId, roomName, currentUserId, socket }) {
   };
 }, [roomId, socket]);
 
+  // 🔥 EMOJI CLICK HANDLER: Chune hue emoji ko current text ke sath jodna
+  const handleEmojiClick = (emojiData) => {
+    setNewMessage((prev) => prev + emojiData.emoji);
+  };
+
   // ==================== 🚀 SEND MESSAGE ENGINE ====================
   const handleSendMessage = async (e) => {
     e.preventDefault();
@@ -76,6 +95,7 @@ function ChatArea({ roomId, roomName, currentUserId, socket }) {
 
     const messageText = newMessage.trim();
     setNewMessage(''); // UI input clearing lag free feel ke liye immediate operations par
+    setShowEmojiPicker(false); // 🔥 Message bhejte hi picker ko band karne ke liye
 
     try {
       // Payload structuring as per your API schema requirement
@@ -145,9 +165,32 @@ function ChatArea({ roomId, roomName, currentUserId, socket }) {
       </div>
 
       {/* MESSAGE SEND BAR CONTAINER */}
-      <div className="p-4 bg-slate-900/40 border-t border-slate-800/80 backdrop-blur-md">
+      <div className="p-4 bg-slate-900/40 border-t border-slate-800/80 backdrop-blur-md relative">
+        
+        {/* 🔥 FLOATING EMOJI PICKER OVERLAY CONTAINER */}
+        {showEmojiPicker && (
+          <div ref={pickerRef} className="absolute bottom-20 left-4 z-50 shadow-2xl rounded-2xl overflow-hidden">
+            <EmojiPicker 
+              theme="dark"
+              onEmojiClick={handleEmojiClick}
+              autoFocusSearch={false}
+              height={350}
+              width={290}
+              skinTonesDisabled
+            />
+          </div>
+        )}
+
         <form onSubmit={handleSendMessage} className="max-w-4xl mx-auto flex items-center gap-2">
-          <button type="button" className="p-2.5 bg-slate-950 border border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-white rounded-xl transition">
+          
+          {/* 🔥 MODIFIED BUTTON: Smile Toggle Trigger */}
+          <button 
+            type="button" 
+            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+            className={`p-2.5 bg-slate-950 border rounded-xl transition ${
+              showEmojiPicker ? 'border-blue-500 text-blue-400' : 'border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800'
+            }`}
+          >
             <Smile size={16} />
           </button>
           
