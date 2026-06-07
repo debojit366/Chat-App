@@ -115,7 +115,10 @@ router.post('/upload-profile-pic/:userId', upload.single('image'), async (req, r
 });
 
         // IMPORTANT: Delete the local file after uploading to Cloudinary to save server space
-        fs.unlinkSync(filePath); 
+        fs.unlink(req.file.path, (err) => {
+            if (err) console.error("❌ error while deleting file", err);
+            else console.log("✅ Local file deleted successfully!");
+        }); 
 
         const updatedUser = await User.findByIdAndUpdate(
             req.params.userId,
