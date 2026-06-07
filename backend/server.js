@@ -24,6 +24,7 @@ const PORT = process.env.PORT || 5000;
 const allowedOrigins = [
   'http://localhost:5173', // local frontend
   'https://chat-8r1tuwu1o-debojitdas366-gmailcoms-projects.vercel.app', //Vercel production URL
+  'https://chat-app-beta-khaki.vercel.app'
 ];
 
 
