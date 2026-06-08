@@ -3,7 +3,7 @@ import User from '../models/User.js';
 import jwt from 'jsonwebtoken';
 import OtpVerification from '../models/OtpVerification.js'
 import nodemailer from 'nodemailer';
-
+import axios from 'axios'
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -16,17 +16,47 @@ const generateToken = (userId) => {
 };
 
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_SERVER,
-  port: 587,
-  secure: false,
-  auth: {
-    user: process.env.SMTP_LOGIN_ID,
-    pass: process.env.SMTP_KEY
-  },
-  connectionTimeout: 5000,
-  greetingTimeout: 5000
-});
+// const transporter = nodemailer.createTransport({
+//   host: process.env.SMTP_SERVER,
+//   port: 587,
+//   secure: false,
+//   auth: {
+//     user: process.env.SMTP_LOGIN_ID,
+//     pass: process.env.SMTP_KEY
+//   },
+//   connectionTimeout: 5000,
+//   greetingTimeout: 5000
+// });
+
+
+const sendBrevoEmail = async (email, username, otp, subject) => {
+    try {
+        await axios.post('https://api.brevo.com/v3/smtp/email', {
+            sender: { name: "MERN Chat App", email: process.env.EMAIL_USER }, // Tumhari verified email
+            to: [{ email: email }],
+            subject: subject,
+            htmlContent: `
+                <div style="font-family: Arial; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
+                    <h2>Hello ${username || ''},</h2>
+                    <p>Your verification code is:</p>
+                    <h1 style="color: #2563eb;">${otp}</h1>
+                    <p>Valid for 10 minutes.</p>
+                </div>
+            `
+        }, {
+            headers: {
+                'api-key': process.env.BREVO_API_KEY, // Render mein ye API Key daalna
+                'content-type': 'application/json'
+            }
+        });
+        return true;
+    } catch (error) {
+        console.error("❌ Brevo API Error:", error.response?.data || error.message);
+        throw new Error("Email sending failed");
+    }
+};
+
+
 
 
 // server.js ya jahan mail bhejne ka logic hai, wahan ye check karo
@@ -42,64 +72,19 @@ const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Route 1: Register a new user
 router.post('/register/request', async (req, res) => {
     const { username, email } = req.body;
-    console.log("OTP Request received for:", email);
-    
     try {
-        // Check if email already exists
         const existingUser = await User.findOne({ email: email.toLowerCase() });
-        if (existingUser) {
-            return res.status(400).json({ message: "⚠️ Email already registered! Please log in." });
-        }
-        
-        const existingUsername = await User.findOne({ username: username.trim() });
-        if (existingUsername) {
-            return res.status(400).json({ message: "⚠️ Username is already taken! Try another one." });
-        }
+        if (existingUser) return res.status(400).json({ message: "Email already registered!" });
 
-        // Generate 6-Digit Signup OTP
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        await OtpVerification.deleteMany({ email: email.toLowerCase() });
+        await new OtpVerification({ email: email.toLowerCase(), otp, purpose: 'email_verification' }).save();
 
-        // Delete any existing signup OTP
-        await OtpVerification.deleteMany({ email: email.toLowerCase(), purpose: 'email_verification' });
-
-        // Save OTP template
-        const newOtpRecord = new OtpVerification({
-            email: email.toLowerCase(),
-            otp: otp,
-            purpose: 'email_verification'
-        });
-        await newOtpRecord.save();
-
-        // Email Payload
-        const mailOptions = {
-            from: `"MERN Chat App" <${process.env.EMAIL_USER}>`,
-            to: email,
-            subject: '🚀 Verify Your Account - Signup OTP',
-            html: `
-                <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
-                    <h2 style="color: #2563eb; text-align: center;">Welcome to Chat App!</h2>
-                    <p>Thank you for signing up, <strong>${username}</strong>. Please use the verification code below to activate your account:</p>
-                    <div style="background-color: #f8fafc; border: 1px dashed #cbd5e1; padding: 15px; text-align: center; font-size: 26px; font-weight: bold; letter-spacing: 5px; color: #1e293b; margin: 25px 0;">
-                        ${otp}
-                    </div>
-                    <p style="color: #64748b; font-size: 12px;">This code is valid for 10 minutes. Do not share this code with anyone.</p>
-                </div>
-            `
-        };
-
-        // Send Email with Debugging
-        console.log("Attempting to connect to SMTP...");
-        await transporter.sendMail(mailOptions);
-        console.log("✅ Email sent successfully to:", email);
-        res.status(200).json({ message: "Verification OTP sent to your email! 📩" });
-
+        await sendBrevoEmail(email, username, otp, '🚀 Verify Your Account');
+        
+        res.status(200).json({ message: "OTP sent successfully! 📩" });
     } catch (err) {
-        // Detailed error logging for Production
-        console.error("❌ NODEMAILER ERROR:", err.message);
-        res.status(500).json({ 
-            message: "Server error during registration request.", 
-            error: err.message 
-        });
+        res.status(500).json({ message: "Failed to send email." });
     }
 });
 
@@ -187,58 +172,18 @@ router.post('/login', async (req, res, next) => {
 router.post('/forgot-password', async (req, res) => {
     const { email } = req.body;
     try {
-        // CHECK 1: Check if user exists
         const user = await User.findOne({ email: email.toLowerCase() });
-        if (!user) {
-            return res.status(404).json({ message: "⚠️ This email is not registered with us!" });
-        }
+        if (!user) return res.status(404).json({ message: "User not found!" });
 
-        // STEP 2: Generate 6-Digit Secure OTP
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        await OtpVerification.deleteMany({ email: email.toLowerCase() });
+        await new OtpVerification({ email: email.toLowerCase(), otp, purpose: 'forgot_password' }).save();
 
-        // STEP 3: Clear older tokens
-        await OtpVerification.deleteMany({ email: email.toLowerCase(), purpose: 'forgot_password' });
+        await sendBrevoEmail(email, user.username, otp, '🔐 Password Reset Code');
 
-        // STEP 4: Save record to OtpVerification collection
-        const newOtpRecord = new OtpVerification({
-            email: email.toLowerCase(),
-            otp: otp,
-            purpose: 'forgot_password'
-        });
-        await newOtpRecord.save();
-
-        // 🔥 STEP 5: Send ACTUAL OTP via Gmail
-        const mailOptions = {
-    from: `"MERN Chat App Support" <${process.env.EMAIL_USER}>`, // Dynamically reads your email
-    to: user.email, 
-    subject: '🔐 Password Reset Verification Code', 
-    html: `
-        <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
-            <h2 style="color: #2563eb; text-align: center; margin-bottom: 20px;">Password Reset Request</h2>
-            <p style="color: #334155; font-size: 15px; line-height: 1.5;">Hello,</p>
-            <p style="color: #334155; font-size: 15px; line-height: 1.5;">We received a request to reset the password for your account. Please use the secure Verification Code (OTP) below to proceed:</p>
-            
-            <div style="background-color: #f8fafc; border: 1px dashed #cbd5e1; padding: 15px; text-align: center; font-size: 26px; font-weight: bold; letter-spacing: 5px; color: #1e293b; margin: 25px 0; border-radius: 8px;">
-                ${otp}
-            </div>
-            
-            <p style="color: #64748b; font-size: 13px; line-height: 1.5;">This OTP is strictly valid for <strong>10 minutes</strong>. If you did not make this request, you can safely ignore this email and your password will remain unchanged.</p>
-            
-            <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 25px 0;" />
-            <p style="color: #94a3b8; font-size: 12px; text-align: center; margin: 0;">This is an automated email, please do not reply to this address.</p>
-        </div>
-    ` 
-};
-
-        // Mail send execute pipeline
-        await transporter.sendMail(mailOptions);
-        console.log(`📨 Real Email dispatched to: ${email} | Dev Token: ${otp}`);
-
-        res.status(200).json({ message: "Verification OTP sent to your email! 📩" });
-
+        res.status(200).json({ message: "OTP sent to your email!" });
     } catch (err) {
-        console.error("Forgot password email error:", err);
-        res.status(500).json({ message: "Server error or Email delivery failed. Please try again." });
+        res.status(500).json({ message: "Email delivery failed." });
     }
 });
 
