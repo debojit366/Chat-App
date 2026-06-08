@@ -27,6 +27,16 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+
+// server.js ya jahan mail bhejne ka logic hai, wahan ye check karo
+console.log("Checking Email Config:", process.env.EMAIL_USER ? "Loaded ✅" : "Missing ❌");
+
+if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    console.error("CRITICAL: Email credentials are not set in environment!");
+}
+
+
+
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Route 1: Register a new user
 router.post('/register/request', async (req, res) => {
