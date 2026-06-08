@@ -88,6 +88,7 @@ router.post('/register/request', async (req, res) => {
         };
 
         // Send Email with Debugging
+        console.log("Attempting to connect to SMTP...");
         await transporter.sendMail(mailOptions);
         console.log("✅ Email sent successfully to:", email);
         res.status(200).json({ message: "Verification OTP sent to your email! 📩" });
