@@ -17,6 +17,7 @@ const generateToken = (userId) => {
 
 
 const transporter = nodemailer.createTransport({
+    
   service: 'gmail',
   host: 'smtp.gmail.com',
   port: 465,
@@ -42,20 +43,23 @@ const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 router.post('/register/request', async (req, res) => {
     const { username, email } = req.body;
     console.log("OTP Request received for:", email);
+    
     try {
         // Check if email already exists
         const existingUser = await User.findOne({ email: email.toLowerCase() });
         if (existingUser) {
             return res.status(400).json({ message: "⚠️ Email already registered! Please log in." });
         }
+        
         const existingUsername = await User.findOne({ username: username.trim() });
         if (existingUsername) {
             return res.status(400).json({ message: "⚠️ Username is already taken! Try another one." });
         }
+
         // Generate 6-Digit Signup OTP
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-        // Delete any existing signup OTP for this email
+        // Delete any existing signup OTP
         await OtpVerification.deleteMany({ email: email.toLowerCase(), purpose: 'email_verification' });
 
         // Save OTP template
@@ -66,7 +70,7 @@ router.post('/register/request', async (req, res) => {
         });
         await newOtpRecord.save();
 
-        // Send Email
+        // Email Payload
         const mailOptions = {
             from: `"MERN Chat App" <${process.env.EMAIL_USER}>`,
             to: email,
@@ -83,12 +87,18 @@ router.post('/register/request', async (req, res) => {
             `
         };
 
+        // Send Email with Debugging
         await transporter.sendMail(mailOptions);
+        console.log("✅ Email sent successfully to:", email);
         res.status(200).json({ message: "Verification OTP sent to your email! 📩" });
 
     } catch (err) {
-        console.error("Signup request error:", err);
-        res.status(500).json({ message: "Server error during registration request." });
+        // Detailed error logging for Production
+        console.error("❌ NODEMAILER ERROR:", err.message);
+        res.status(500).json({ 
+            message: "Server error during registration request.", 
+            error: err.message 
+        });
     }
 });
 
