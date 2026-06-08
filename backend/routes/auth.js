@@ -17,15 +17,15 @@ const generateToken = (userId) => {
 
 
 const transporter = nodemailer.createTransport({
-    
-  service: 'gmail',
   host: 'smtp.gmail.com',
   port: 465,
-  secure: true, // TLS use karo
+  secure: true,
   auth: {
     user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS, // Yahan 16-digit App Password hona chahiye
+    pass: process.env.EMAIL_PASS,
   },
+  connectionTimeout: 20000, // 20 seconds ka timeout
+  greetingTimeout: 20000,   // 20 seconds ka greeting timeout
 });
 
 
