@@ -32,20 +32,14 @@ const generateToken = (userId) => {
 const sendBrevoEmail = async (email, username, otp, subject) => {
     try {
         await axios.post('https://api.brevo.com/v3/smtp/email', {
-            sender: { name: "MERN Chat App", email: process.env.EMAIL_USER }, // Tumhari verified email
+            sender: { name: "MERN Chat App", email: process.env.EMAIL_USER },
             to: [{ email: email }],
             subject: subject,
-            htmlContent: `
-                <div style="font-family: Arial; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
-                    <h2>Hello ${username || ''},</h2>
-                    <p>Your verification code is:</p>
-                    <h1 style="color: #2563eb;">${otp}</h1>
-                    <p>Valid for 10 minutes.</p>
-                </div>
-            `
+            htmlContent: `<h1>Your OTP is ${otp}</h1>`
         }, {
             headers: {
-                'api-key': process.env.BREVO_API_KEY, // Render mein ye API Key daalna
+                // 👇 Yahan badlav karo: BREVO_API_KEY ki jagah SMTP_KEY likho
+                'api-key': process.env.SMTP_KEY, 
                 'content-type': 'application/json'
             }
         });
