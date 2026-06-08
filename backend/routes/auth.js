@@ -17,12 +17,12 @@ const generateToken = (userId) => {
 
 
 const transporter = nodemailer.createTransport({
-  host: 'smtp-relay.brevo.com',
-  port: 2525,
+  host: process.env.SMTP_SERVER,
+  port: 587,
   secure: false,
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
+    user: process.env.SMTP_LOGIN_ID,
+    pass: process.env.SMTP_KEY
   },
   connectionTimeout: 5000,
   greetingTimeout: 5000
