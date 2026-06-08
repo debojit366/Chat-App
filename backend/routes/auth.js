@@ -17,15 +17,13 @@ const generateToken = (userId) => {
 
 
 const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
+  host: 'smtp-relay.brevo.com',
   port: 587,
   secure: false,
   auth: {
     user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-  connectionTimeout: 20000, // 20 seconds ka timeout
-  greetingTimeout: 20000,   // 20 seconds ka greeting timeout
+    pass: process.env.EMAIL_PASS
+  }
 });
 
 
