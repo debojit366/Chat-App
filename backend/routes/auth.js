@@ -41,6 +41,7 @@ const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Route 1: Register a new user
 router.post('/register/request', async (req, res) => {
     const { username, email } = req.body;
+    console.log("OTP Request received for:", email);
     try {
         // Check if email already exists
         const existingUser = await User.findOne({ email: email.toLowerCase() });
