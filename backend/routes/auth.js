@@ -17,11 +17,14 @@ const generateToken = (userId) => {
 
 
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.EMAIL_USER, // Enter your Gmail ID
-        pass: process.env.EMAIL_PASS    // Enter the 16-digit App Password from Google (without spaces)
-    }
+  service: 'gmail',
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true, // TLS use karo
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS, // Yahan 16-digit App Password hona chahiye
+  },
 });
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
