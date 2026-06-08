@@ -35,11 +35,42 @@ const sendBrevoEmail = async (email, username, otp, subject) => {
             sender: { name: "MERN Chat App", email: process.env.EMAIL_USER },
             to: [{ email: email }],
             subject: subject,
-            htmlContent: `<h1>Your OTP is ${otp}</h1>`
+            htmlContent: `
+                <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 550px; margin: 0 auto; padding: 30px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                    
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <div style="display: inline-block; background: linear-gradient(135deg, #2563eb, #3b82f6); color: white; padding: 12px 20px; font-size: 22px; font-weight: bold; border-radius: 12px; letter-spacing: 0.5px;">
+                            💬 MERN Chat App
+                        </div>
+                    </div>
+
+                    <div style="color: #334155; font-size: 16px; line-height: 1.6; margin-bottom: 25px;">
+                        <p style="font-size: 18px; margin-top: 0; color: #1e293b;">Hello <strong>${username || 'User'}</strong>,</p>
+                        <p>Thank you for choosing MERN Chat App. To complete your verification process, please use the secure One-Time Password (OTP) below:</p>
+                    </div>
+
+                    <div style="background: #f8fafc; border: 2px dashed #cbd5e1; padding: 18px; text-align: center; font-size: 32px; font-weight: 800; letter-spacing: 6px; color: #2563eb; margin: 30px 0; border-radius: 12px;">
+                        ${otp}
+                    </div>
+
+                    <div style="background-color: #fefce8; border-left: 4px solid #eab308; padding: 12px 16px; margin-bottom: 30px; border-radius: 0 8px 8px 0;">
+                        <p style="color: #713f12; font-size: 13px; margin: 0;">
+                            ⚠️ <strong>Important Security Note:</strong> This verification code is valid for <strong>10 minutes</strong>. Please do not share this code or screen with anyone for security purposes.
+                        </p>
+                    </div>
+
+                    <p style="color: #64748b; font-size: 14px; margin-bottom: 25px;">If you did not initiate this request, you can safely disregard this email.</p>
+
+                    <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 25px 0;" />
+                    <p style="color: #94a3b8; font-size: 12px; text-align: center; margin: 0; line-height: 1.4;">
+                        This is an automated operational email from MERN Chat App. <br/>
+                        © 2026 MERN Chat App Inc. All rights reserved.
+                    </p>
+                </div>
+            `
         }, {
             headers: {
-                // 👇 Yahan badlav karo: BREVO_API_KEY ki jagah SMTP_KEY likho
-                'api-key': process.env.SMTP_KEY, 
+                'api-key': process.env.BREVO_API_KEY, 
                 'content-type': 'application/json'
             }
         });
